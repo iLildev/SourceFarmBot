@@ -119,6 +119,12 @@ async def main() -> None:
     logger.info("Starting SourceFarm bot ...")
     await init_db()
 
+    # Start BotManager watcher + restore any bots that were running before restart
+    from runtime.bot_manager import get_manager
+    manager = get_manager()
+    await manager.start_watcher()
+    await manager.restore_running_bots()
+
     bot = Bot(
         token=BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),

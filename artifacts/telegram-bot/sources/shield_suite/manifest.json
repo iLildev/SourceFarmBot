@@ -1,0 +1,22 @@
+{
+  "id": 1,
+  "name": "Shield Suite",
+  "version": "1.0.0",
+  "author": "SourceFarm",
+  "category": "protection",
+  "entry": "main.py",
+  "min_python": "3.10",
+  "requires": ["aiogram>=3.0", "aiohttp>=3.10"],
+  "description": "Comprehensive group and channel protection bot",
+  "config_schema": {
+    "captcha_enabled":    {"type": "bool",   "default": true,  "label": "تفعيل الكابتشا"},
+    "captcha_timeout":    {"type": "int",    "default": 60,    "label": "مهلة الكابتشا (ثانية)"},
+    "flood_threshold":    {"type": "int",    "default": 5,     "label": "حد الفلود (رسائل/10ث)"},
+    "warn_limit":         {"type": "int",    "default": 3,     "label": "عدد التحذيرات قبل الحظر"},
+    "block_links":        {"type": "bool",   "default": true,  "label": "حجب الروابط الخارجية"},
+    "block_forwarded":    {"type": "bool",   "default": false, "label": "حجب الرسائل المُعاد توجيهها"},
+    "raid_threshold":     {"type": "int",    "default": 10,    "label": "حد كشف الريد (أعضاء/دقيقة)"},
+    "log_channel_id":     {"type": "int",    "default": null,  "label": "معرّف قناة السجلات (اختياري)"},
+    "admin_notify":       {"type": "bool",   "default": true,  "label": "إشعار المشرف بالتهديدات"}
+  }
+}

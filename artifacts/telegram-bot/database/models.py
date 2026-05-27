@@ -51,15 +51,30 @@ class Bot(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
+
+    # Full token stored encrypted via Fernet (runtime/crypto.py)
+    token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # First 10 chars only — used for duplicate detection (safe to store plain)
     token_hint: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Runtime state
     is_running: Mapped[bool] = mapped_column(Boolean, default=False)
+    pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="stopped")
+    # "stopped" | "running" | "crashed" | "error"
+
+    last_heartbeat: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    installed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
     mode: Mapped[str] = mapped_column(String(16), default="studio")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     owner: Mapped["User"] = relationship("User", back_populates="bots")
 
     def __repr__(self) -> str:
-        return f"<Bot id={self.id} name={self.name}>"
+        return f"<Bot id={self.id} name={self.name} status={self.status}>"
 
 
 class AuditLog(Base):

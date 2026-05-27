@@ -1,17 +1,21 @@
+"""
+install_service — validates token, deducts seeds, persists Bot record,
+then delegates startup to BotManager.
+"""
 import logging
 import re
 import aiohttp
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+
 from database.models import Bot, User
 from database.session import async_session_maker
+from runtime.crypto import encrypt_token
 from services.user_service import get_user
 
 logger = logging.getLogger(__name__)
 
-# Telegram token: {bot_id}:{secret}
-# bot_id: 8-12 digits, secret: 35-46 chars of [A-Za-z0-9_-]
 TOKEN_RE = re.compile(r"^\d{5,15}:[A-Za-z0-9_-]{25,50}$")
 
 
@@ -39,31 +43,27 @@ async def get_user_seeds(telegram_id: int) -> int:
     return user.points if user else 0
 
 
-async def token_already_registered(token_hint: str) -> bool:
-    """Check if a bot with this token hint already exists."""
-    hint = token_hint[:10]
-    async with async_session_maker() as session:
-        result = await session.execute(
-            select(Bot).where(Bot.token_hint == hint)
-        )
-        return result.scalar_one_or_none() is not None
-
-
 async def install_bot(
     telegram_id: int,
     token: str,
     bot_name: str,
+    source_id: int,
     source_cost: int,
     source_name: str,
 ) -> Bot:
     """
-    Deduct seeds and persist the new Bot record.
-    Raises InstallError on insufficient seeds or duplicate token.
+    1. Validate user + seeds.
+    2. Detect duplicate tokens.
+    3. Deduct seeds.
+    4. Persist Bot record with encrypted token.
+    5. Start bot via BotManager.
+    Raises InstallError on any failure.
     """
     token = token.strip()
     hint  = token[:10]
 
     async with async_session_maker() as session:
+        # Load user
         user_result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
         )
@@ -71,32 +71,57 @@ async def install_bot(
         if not user:
             raise InstallError("user_not_found")
 
+        # Seeds check
         if source_cost > 0 and user.points < source_cost:
             raise InstallError("insufficient_seeds")
 
+        # Duplicate token check
         dup_result = await session.execute(
             select(Bot).where(Bot.token_hint == hint)
         )
         if dup_result.scalar_one_or_none():
             raise InstallError("duplicate_token")
 
+        # Deduct seeds
         if source_cost > 0:
             user.points -= source_cost
 
+        # Encrypt full token
+        try:
+            encrypted = encrypt_token(token)
+        except Exception as exc:
+            logger.error("Token encryption failed: %s", exc)
+            raise InstallError("encryption_failed") from exc
+
+        now = datetime.utcnow()
         bot = Bot(
             owner_id=user.id,
             name=bot_name,
             token_hint=hint,
+            token_encrypted=encrypted,
+            source_id=source_id,
             is_running=False,
+            pid=None,
+            status="stopped",
+            installed_at=now,
+            created_at=now,
             mode="studio",
-            created_at=datetime.utcnow(),
         )
         session.add(bot)
         await session.commit()
         await session.refresh(bot)
 
         logger.info(
-            "Bot installed: owner_tg=%s bot_name=%s source=%s cost=%s seeds_left=%s",
-            telegram_id, bot_name, source_name, source_cost, user.points,
+            "Bot installed: owner_tg=%s bot_name=%s source=%s cost=%s seeds_left=%s bot_id=%s",
+            telegram_id, bot_name, source_name, source_cost, user.points, bot.id,
         )
-        return bot
+
+    # Start the bot subprocess via BotManager (outside the DB session)
+    from runtime.bot_manager import get_manager
+    manager = get_manager()
+    started = await manager.start_bot(bot.id)
+    if not started:
+        logger.error("BotManager failed to start bot_id=%s — stored but not running.", bot.id)
+        # Don't raise — bot is persisted, user can restart manually later
+
+    return bot

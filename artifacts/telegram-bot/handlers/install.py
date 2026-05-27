@@ -197,11 +197,15 @@ async def receive_token(message: Message, state: FSMContext) -> None:
     bot_username   = bot_info.get("username", "")
     bot_first_name = bot_info.get("first_name", source_name)
 
+    data         = await state.get_data()
+    source_id_for_install: int = data.get("source_id", 0)
+
     try:
         await install_bot(
             telegram_id=tg_id,
             token=token,
             bot_name=bot_first_name,
+            source_id=source_id_for_install,
             source_cost=cost,
             source_name=source_name,
         )
