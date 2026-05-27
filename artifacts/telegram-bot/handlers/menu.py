@@ -1,25 +1,31 @@
 import logging
-from aiogram import Router
-from aiogram.types import CallbackQuery
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
 
 from keyboards.menu_kb import menu_kb, back_to_menu_kb
 
 logger = logging.getLogger(__name__)
 router = Router(name="menu")
 
+MENU_TEXT = (
+    "☰ <b>القائمة الرئيسية</b>\n"
+    "━━━━━━━━━━━━━━━━━\n\n"
+    "اختر القسم الذي تريد الوصول إليه:"
+)
 
-@router.callback_query(lambda c: c.data == "menu")
+
+@router.message(F.text == "☰ Menu")
+async def show_menu_msg(message: Message) -> None:
+    await message.answer(MENU_TEXT, reply_markup=menu_kb(), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "menu")
 async def show_menu(callback: CallbackQuery) -> None:
-    text = (
-        "☰ <b>القائمة الرئيسية</b>\n"
-        "━━━━━━━━━━━━━━━━━\n\n"
-        "اختر القسم الذي تريد الوصول إليه:"
-    )
-    await callback.message.edit_text(text, reply_markup=menu_kb(), parse_mode="HTML")
+    await callback.message.edit_text(MENU_TEXT, reply_markup=menu_kb(), parse_mode="HTML")
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "menu_profile")
+@router.callback_query(F.data == "menu_profile")
 async def show_profile(callback: CallbackQuery) -> None:
     user = callback.from_user
     username = f"@{user.username}" if user.username else "—"
@@ -38,7 +44,7 @@ async def show_profile(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "menu_plan")
+@router.callback_query(F.data == "menu_plan")
 async def show_plan(callback: CallbackQuery) -> None:
     text = (
         "📋 <b>خطتك الحالية</b>\n"
@@ -57,7 +63,7 @@ async def show_plan(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "menu_wallet")
+@router.callback_query(F.data == "menu_wallet")
 async def show_wallet(callback: CallbackQuery) -> None:
     text = (
         "💎 <b>محفظة النقاط</b>\n"
@@ -72,7 +78,7 @@ async def show_wallet(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "menu_referral")
+@router.callback_query(F.data == "menu_referral")
 async def show_referral(callback: CallbackQuery) -> None:
     user_id = callback.from_user.id
     text = (
@@ -89,7 +95,7 @@ async def show_referral(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "menu_codes")
+@router.callback_query(F.data == "menu_codes")
 async def show_codes(callback: CallbackQuery) -> None:
     text = (
         "🎫 <b>أكواد التفعيل</b>\n"
@@ -104,7 +110,7 @@ async def show_codes(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "menu_help")
+@router.callback_query(F.data == "menu_help")
 async def show_help(callback: CallbackQuery) -> None:
     text = (
         "❓ <b>المساعدة والدعم</b>\n"
@@ -122,7 +128,7 @@ async def show_help(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "menu_settings")
+@router.callback_query(F.data == "menu_settings")
 async def show_settings(callback: CallbackQuery) -> None:
     text = (
         "⚙️ <b>الإعدادات</b>\n"

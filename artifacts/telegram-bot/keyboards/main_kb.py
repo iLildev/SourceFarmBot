@@ -1,11 +1,12 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 
-def main_menu_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🌲 Source Tree", callback_data="source_tree")],
-            [InlineKeyboardButton(text="⚡ Mode", callback_data="mode")],
-            [InlineKeyboardButton(text="☰ Menu", callback_data="menu")],
-        ]
+def main_menu_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🌲 Source Tree")],
+            [KeyboardButton(text="☰ Menu"), KeyboardButton(text="⚡ Mode")],
+        ],
+        resize_keyboard=True,
+        persistent=True,
     )

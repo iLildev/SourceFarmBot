@@ -1,6 +1,6 @@
 import logging
-from aiogram import Router
-from aiogram.types import CallbackQuery
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
 
 from keyboards.mode_kb import (
     mode_select_kb,
@@ -13,21 +13,27 @@ from keyboards.mode_kb import (
 logger = logging.getLogger(__name__)
 router = Router(name="mode")
 
+MODE_TEXT = (
+    "⚡ <b>اختر وضع التشغيل</b>\n\n"
+    "🧩 <b>Studio Mode</b>\n"
+    "   واجهة بسيطة لإدارة البوتات بدون كود\n\n"
+    "⚡ <b>RealDev Mode</b>\n"
+    "   واجهة احترافية للمطورين مع أدوات متقدمة"
+)
 
-@router.callback_query(lambda c: c.data == "mode")
+
+@router.message(F.text == "⚡ Mode")
+async def show_mode_msg(message: Message) -> None:
+    await message.answer(MODE_TEXT, reply_markup=mode_select_kb(), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "mode")
 async def show_mode(callback: CallbackQuery) -> None:
-    text = (
-        "⚡ <b>اختر وضع التشغيل</b>\n\n"
-        "🧩 <b>Studio Mode</b>\n"
-        "   واجهة بسيطة لإدارة البوتات بدون كود\n\n"
-        "⚡ <b>RealDev Mode</b>\n"
-        "   واجهة احترافية للمطورين مع أدوات متقدمة"
-    )
-    await callback.message.edit_text(text, reply_markup=mode_select_kb(), parse_mode="HTML")
+    await callback.message.edit_text(MODE_TEXT, reply_markup=mode_select_kb(), parse_mode="HTML")
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "mode_studio")
+@router.callback_query(F.data == "mode_studio")
 async def show_studio(callback: CallbackQuery) -> None:
     text = (
         "🧩 <b>Studio Mode</b>\n"
@@ -39,7 +45,7 @@ async def show_studio(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "mode_realdev")
+@router.callback_query(F.data == "mode_realdev")
 async def show_realdev(callback: CallbackQuery) -> None:
     text = (
         "⚡ <b>RealDev Mode</b>\n"
@@ -51,7 +57,7 @@ async def show_realdev(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "studio_bots")
+@router.callback_query(F.data == "studio_bots")
 async def studio_bots(callback: CallbackQuery) -> None:
     text = (
         "🤖 <b>Active Bots</b>\n\n"
@@ -66,7 +72,7 @@ async def studio_bots(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "studio_settings")
+@router.callback_query(F.data == "studio_settings")
 async def studio_settings(callback: CallbackQuery) -> None:
     text = (
         "⚙️ <b>Quick Settings</b>\n\n"
@@ -80,7 +86,7 @@ async def studio_settings(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "studio_status")
+@router.callback_query(F.data == "studio_status")
 async def studio_status(callback: CallbackQuery) -> None:
     text = (
         "🟢 <b>Bot Status</b>\n\n"
@@ -95,7 +101,7 @@ async def studio_status(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "dev_runtime")
+@router.callback_query(F.data == "dev_runtime")
 async def dev_runtime(callback: CallbackQuery) -> None:
     text = (
         "🖥 <b>Runtime</b>\n\n"
@@ -110,7 +116,7 @@ async def dev_runtime(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "dev_plugins")
+@router.callback_query(F.data == "dev_plugins")
 async def dev_plugins(callback: CallbackQuery) -> None:
     text = (
         "🔌 <b>Plugins</b>\n\n"
@@ -124,7 +130,7 @@ async def dev_plugins(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "dev_logs")
+@router.callback_query(F.data == "dev_logs")
 async def dev_logs(callback: CallbackQuery) -> None:
     text = (
         "📋 <b>Logs</b>  <i>(آخر 5 سجلات)</i>\n\n"
@@ -138,7 +144,7 @@ async def dev_logs(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "dev_events")
+@router.callback_query(F.data == "dev_events")
 async def dev_events(callback: CallbackQuery) -> None:
     text = (
         "⚡ <b>Events</b>\n\n"
@@ -153,7 +159,7 @@ async def dev_events(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data == "dev_variables")
+@router.callback_query(F.data == "dev_variables")
 async def dev_variables(callback: CallbackQuery) -> None:
     text = (
         "📦 <b>Variables</b>\n\n"

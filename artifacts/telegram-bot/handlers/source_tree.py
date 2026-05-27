@@ -1,14 +1,12 @@
 import logging
-from aiogram import Router
-from aiogram.types import CallbackQuery
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
 
 from data.fake_sources import FAKE_SOURCES
 from keyboards.source_tree_kb import source_detail_kb, source_nav_kb
 
 logger = logging.getLogger(__name__)
 router = Router(name="source_tree")
-
-PAGE_SIZE = 1
 
 
 def _render_source(source: dict, index: int, total: int) -> str:
@@ -27,30 +25,36 @@ def _render_source(source: dict, index: int, total: int) -> str:
     )
 
 
-@router.callback_query(lambda c: c.data == "source_tree")
+@router.message(F.text == "🌲 Source Tree")
+async def show_source_tree_msg(message: Message) -> None:
+    source = FAKE_SOURCES[0]
+    text = _render_source(source, 0, len(FAKE_SOURCES))
+    await message.answer(text, reply_markup=source_detail_kb(source["id"]), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "source_tree")
 async def show_source_tree(callback: CallbackQuery) -> None:
     source = FAKE_SOURCES[0]
     text = _render_source(source, 0, len(FAKE_SOURCES))
     await callback.message.edit_text(
-        text,
-        reply_markup=source_detail_kb(source["id"]),
-        parse_mode="HTML",
+        text, reply_markup=source_detail_kb(source["id"]), parse_mode="HTML"
     )
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data and c.data.startswith("src_page_"))
+@router.callback_query(F.data.startswith("src_page_"))
 async def paginate_sources(callback: CallbackQuery) -> None:
     page = int(callback.data.split("_")[-1])
     page = max(0, min(page, len(FAKE_SOURCES) - 1))
     source = FAKE_SOURCES[page]
     text = _render_source(source, page, len(FAKE_SOURCES))
-    kb = source_detail_kb(source["id"])
-    await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    await callback.message.edit_text(
+        text, reply_markup=source_detail_kb(source["id"]), parse_mode="HTML"
+    )
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data and c.data.startswith("details_"))
+@router.callback_query(F.data.startswith("details_"))
 async def show_details(callback: CallbackQuery) -> None:
     source_id = int(callback.data.split("_")[-1])
     source = next((s for s in FAKE_SOURCES if s["id"] == source_id), None)
@@ -78,7 +82,7 @@ async def show_details(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(lambda c: c.data and c.data.startswith("install_"))
+@router.callback_query(F.data.startswith("install_"))
 async def install_source(callback: CallbackQuery) -> None:
     source_id = int(callback.data.split("_")[-1])
     source = next((s for s in FAKE_SOURCES if s["id"] == source_id), None)
