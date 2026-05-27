@@ -1,7 +1,7 @@
 import logging
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 from keyboards.main_kb import main_menu_kb
 from services.user_service import get_or_create_user, add_seeds, WELCOME_SEEDS, REFERRAL_BONUS_NEW_USER
@@ -93,3 +93,14 @@ async def cmd_start(message: Message) -> None:
         logger.info("Returning user: tg_id=%s seeds=%s", tg_user.id, user.points)
 
     await message.answer(text, reply_markup=main_menu_kb(), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "back_main")
+async def back_to_main(callback: CallbackQuery) -> None:
+    """Universal back-to-main handler — closes inline message, reminds user of the reply keyboard."""
+    await callback.message.delete()
+    await callback.message.answer(
+        "🏠 اختر من القائمة أدناه 👇",
+        reply_markup=main_menu_kb(),
+    )
+    await callback.answer()
