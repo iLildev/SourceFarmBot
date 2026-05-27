@@ -4,8 +4,8 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 def mode_select_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🧩 Studio Mode", callback_data="mode_studio")],
-            [InlineKeyboardButton(text="⚡ RealDev Mode", callback_data="mode_realdev")],
+            [InlineKeyboardButton(text="🧩 Admin Mode", callback_data="mode_studio")],
+            [InlineKeyboardButton(text="⚡ Dev Mode",   callback_data="mode_realdev")],
             [InlineKeyboardButton(text="🔙 الرئيسية", callback_data="back_main")],
         ]
     )

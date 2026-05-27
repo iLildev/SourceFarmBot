@@ -200,7 +200,7 @@ async def show_bot_detail(callback: CallbackQuery) -> None:
         return
 
     status_icon = "🟢 شغّال" if bot.is_running else "🔴 متوقف"
-    mode_label  = "🧩 Studio Mode" if bot.mode == "studio" else "⚡ RealDev Mode"
+    mode_label  = "🧩 Admin Mode" if bot.mode == "studio" else "⚡ Dev Mode"
     created     = _format_date(bot.created_at)
     hint        = bot.token_hint or "—"
 
@@ -284,8 +284,8 @@ async def show_plan(callback: CallbackQuery) -> None:
         "✅ بوت واحد\n"
         "✅ 3 إضافات\n"
         "✅ دعم أساسي\n"
-        "❌ Studio Mode متقدم\n"
-        "❌ RealDev بلا حدود\n"
+        "❌ Admin Mode متقدم\n"
+        "❌ Dev بلا حدود\n"
         "❌ تحليلات متقدمة\n\n"
         "━━━━━━━━━━━━━━━━━\n"
         "⬆️ <b>ترقية الخطة قريباً</b>"

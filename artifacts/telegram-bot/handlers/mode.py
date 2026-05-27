@@ -16,9 +16,9 @@ router = Router(name="mode")
 
 MODE_TEXT = (
     "⚡ <b>اختر وضع التشغيل</b>\n\n"
-    "🧩 <b>Studio Mode</b>\n"
+    "🧩 <b>Admin Mode</b>\n"
     "   واجهة بسيطة لإدارة البوتات بدون كود\n\n"
-    "⚡ <b>RealDev Mode</b>\n"
+    "⚡ <b>Dev Mode</b>\n"
     "   واجهة احترافية للمطورين مع أدوات متقدمة"
 )
 
@@ -37,7 +37,7 @@ async def show_mode(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "mode_studio")
 async def show_studio(callback: CallbackQuery) -> None:
     text = (
-        "🧩 <b>Studio Mode</b>\n"
+        "🧩 <b>Admin Mode</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
         "وضع بدون كود — أدِر بوتاتك بنقرة واحدة."
     )
@@ -48,7 +48,7 @@ async def show_studio(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "mode_realdev")
 async def show_realdev(callback: CallbackQuery) -> None:
     text = (
-        "⚡ <b>RealDev Mode</b>\n"
+        "⚡ <b>Dev Mode</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
         "وضع المطورين المتقدم — تحكم كامل في كل شيء."
     )
@@ -70,7 +70,7 @@ async def studio_bots(callback: CallbackQuery) -> None:
         lines = ["🤖 <b>Active Bots</b>\n"]
         for bot in bots:
             icon  = "🟢" if bot.is_running else "🔴"
-            mode  = "Studio" if bot.mode == "studio" else "RealDev"
+            mode  = "Admin" if bot.mode == "studio" else "Dev"
             lines.append(f"{icon} <b>{bot.name}</b>  <i>({mode})</i>")
         lines.append("\n<i>إدارة الإضافات وتشغيل البوتات فعلياً — قريباً</i>")
         text = "\n".join(lines)

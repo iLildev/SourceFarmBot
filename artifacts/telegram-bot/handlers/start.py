@@ -102,7 +102,7 @@ async def cmd_start(message: Message) -> None:
 @router.callback_query(F.data == "w_studio")
 async def w_studio(callback: CallbackQuery) -> None:
     await callback.message.answer(
-        "🧩 <b>Studio Mode</b>\n"
+        "🧩 <b>Admin Mode</b>\n"
         "━━━━━━━━━━━\n\n"
         "وضع بدون كود — أدِر بوتاتك بنقرة واحدة.",
         reply_markup=studio_mode_kb(),
@@ -114,7 +114,7 @@ async def w_studio(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "w_realdev")
 async def w_realdev(callback: CallbackQuery) -> None:
     await callback.message.answer(
-        "⚡ <b>RealDev Mode</b>\n"
+        "⚡ <b>Dev Mode</b>\n"
         "━━━━━━━━━━━\n\n"
         "وضع المطورين المتقدم — تحكم كامل في كل شيء.",
         reply_markup=realdev_mode_kb(),
@@ -164,8 +164,8 @@ async def w_plan(callback: CallbackQuery) -> None:
         "✅ بوت واحد\n"
         "✅ 3 إضافات\n"
         "✅ دعم أساسي\n"
-        "❌ Studio Mode متقدم\n"
-        "❌ RealDev بلا حدود\n"
+        "❌ Admin Mode متقدم\n"
+        "❌ Dev بلا حدود\n"
         "❌ تحليلات متقدمة\n\n"
         "━━━━━━━━━━━━━━━━━\n"
         "⬆️ <b>ترقية الخطة قريباً</b>",
