@@ -28,7 +28,7 @@ WELCOME_NEW_TEXT = (
     "╚══════════════════════════╝\n\n"
     "أهلاً وسهلاً، <b>{name}</b>! 🎉\n\n"
     "تم تسجيل حسابك بنجاح.\n"
-    "لقد حصلت على <b>🌱 50 بذرة</b> كهدية ترحيبية!\n\n"
+    "لقد حصلت على <b>🌱 20 بذرة</b> كهدية ترحيبية!\n\n"
     "اختر من القائمة أدناه للبدء 👇"
 )
 
@@ -45,7 +45,7 @@ async def cmd_start(message: Message) -> None:
 
     if created:
         from services.user_service import add_seeds
-        await add_seeds(tg_user.id, 50)
+        await add_seeds(tg_user.id, 20)
         text = WELCOME_NEW_TEXT.format(name=tg_user.first_name or "مستخدم")
         logger.info("New user welcomed: tg_id=%s", tg_user.id)
     else:
