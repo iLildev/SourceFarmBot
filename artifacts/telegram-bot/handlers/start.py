@@ -14,11 +14,6 @@ logger = logging.getLogger(__name__)
 router = Router(name="start")
 
 
-WELCOME_TEXT = (
-    "👋 مرحباً بعودتك، <b>{name}</b>!\n\n"
-    "اختر من القائمة أدناه للبدء 👇"
-)
-
 _WELCOME_BODY = (
     "👋 مرحبًا بك في <b>SourceFarm</b>\n\n"
     "🤔 <b>ماذا ستجد هنا؟</b>\n"
@@ -37,6 +32,8 @@ _WELCOME_BODY = (
     "━━━━━━━━━━━\n"
     "💰 كل هذا باشتراك واحد يبدأ من <b>4.99$</b> وخطة مجانية كريمة.. ماذا تنتظر؟ ابدأ الآن!\n"
 )
+
+WELCOME_TEXT = _WELCOME_BODY
 
 WELCOME_NEW_TEXT = (
     _WELCOME_BODY
