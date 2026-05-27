@@ -18,6 +18,7 @@ class User(Base):
     points: Mapped[int] = mapped_column(Integer, default=0)
     referred_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True, default=None)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     bots: Mapped[list["Bot"]] = relationship("Bot", back_populates="owner")
@@ -56,3 +57,17 @@ class Bot(Base):
 
     def __repr__(self) -> str:
         return f"<Bot id={self.id} name={self.name}>"
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    admin_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, default=None)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<AuditLog id={self.id} admin={self.admin_id} action={self.action}>"

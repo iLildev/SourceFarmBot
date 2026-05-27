@@ -18,10 +18,17 @@ async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_
 
 async def init_db() -> None:
     async with engine.begin() as conn:
+        # Create all new tables (skips existing ones)
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-        await conn.execute(
-            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by BIGINT DEFAULT NULL")
-        )
+
+        # Idempotent column migrations for existing tables
+        migrations = [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by BIGINT DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP DEFAULT NULL",
+        ]
+        for sql in migrations:
+            await conn.execute(text(sql))
+
     logger.info("Database tables created / verified.")
 
 

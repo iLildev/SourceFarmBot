@@ -17,6 +17,18 @@ ADMIN_IDS: set[int] = {
 
 OWNER_USERNAME: str = os.environ.get("OWNER_USERNAME", "")
 
+# ── Webhook (optional) ────────────────────────────────────────────────────────
+# Set WEBHOOK_HOST to your public HTTPS URL to enable webhook mode.
+# Example: https://sourcefarm.replit.app
+# Leave empty to use polling (default for development).
+WEBHOOK_HOST: str = os.environ.get("WEBHOOK_HOST", "").rstrip("/")
+WEBHOOK_PORT: int = int(os.environ.get("PORT", "8080"))
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+RATE_LIMIT_MESSAGES: int = int(os.environ.get("RATE_LIMIT_MESSAGES", "20"))
+RATE_LIMIT_WINDOW: int   = int(os.environ.get("RATE_LIMIT_WINDOW",   "60"))
+RATE_LIMIT_BLOCK: int    = int(os.environ.get("RATE_LIMIT_BLOCK",    "60"))
+
 
 def _build_async_db_url(url: str) -> tuple[str, dict]:
     """Convert any postgres:// URL to postgresql+asyncpg:// and strip sslmode."""

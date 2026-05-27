@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import select, func
 
-from database.models import User
+from database.models import User, Bot
 from database.session import async_session_maker
 
 logger = logging.getLogger(__name__)
@@ -27,12 +27,31 @@ async def get_platform_stats() -> dict:
             select(func.count()).where(User.created_at >= week_ago)
         )).scalar_one()
 
+        # Active users = seen in the last 24 hours
+        day_ago = datetime.utcnow() - timedelta(hours=24)
+        active_24h: int = (await session.execute(
+            select(func.count()).where(User.last_seen >= day_ago)
+        )).scalar_one()
+
         total_seeds: int = (await session.execute(
             select(func.coalesce(func.sum(User.points), 0))
         )).scalar_one()
 
         total_referrals: int = (await session.execute(
             select(func.count()).where(User.referred_by.isnot(None))
+        )).scalar_one()
+
+        # Bot statistics
+        total_bots: int = (await session.execute(
+            select(func.count()).select_from(Bot)
+        )).scalar_one()
+
+        running_bots: int = (await session.execute(
+            select(func.count()).where(Bot.is_running.is_(True))
+        )).scalar_one()
+
+        bots_today: int = (await session.execute(
+            select(func.count()).where(func.date(Bot.created_at) == today)
         )).scalar_one()
 
         referrers_result = await session.execute(
@@ -60,12 +79,16 @@ async def get_platform_stats() -> dict:
         top_referrers = referrers_result.fetchall()
 
         return {
-            "total_users": total_users,
-            "new_today": new_today,
-            "new_week": new_week,
-            "total_seeds": total_seeds,
+            "total_users":    total_users,
+            "new_today":      new_today,
+            "new_week":       new_week,
+            "active_24h":     active_24h,
+            "total_seeds":    total_seeds,
             "total_referrals": total_referrals,
-            "top_referrers": top_referrers,
+            "total_bots":     total_bots,
+            "running_bots":   running_bots,
+            "bots_today":     bots_today,
+            "top_referrers":  top_referrers,
         }
 
 
