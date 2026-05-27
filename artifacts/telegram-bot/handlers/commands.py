@@ -77,30 +77,6 @@ async def cmd_top(message: Message) -> None:
     await message.answer("\n".join(lines), parse_mode="HTML")
 
 
-@router.message(Command("report"))
-async def cmd_report(message: Message) -> None:
-    args = message.text.strip().split(maxsplit=1)
-    detail = args[1] if len(args) > 1 else ""
-
-    if not detail:
-        await message.answer(
-            "🚨 <b>الإبلاغ عن مشكلة</b>\n\n"
-            "أرسل الأمر مع وصف المشكلة:\n"
-            "<code>/report اسم المصدر أو وصف المشكلة</code>\n\n"
-            "سيتم مراجعة البلاغ من قِبَل الفريق.",
-            parse_mode="HTML",
-        )
-        return
-
-    await message.answer(
-        f"✅ <b>تم استلام بلاغك</b>\n\n"
-        f"📝 <b>التفاصيل:</b> {detail}\n\n"
-        f"🕐 سيتم مراجعة البلاغ خلال 24 ساعة.\n"
-        f"شكراً على مساعدتك في تحسين المنصة! 🙏",
-        parse_mode="HTML",
-    )
-    logger.info("Report received from user %s: %s", message.from_user.id, detail)
-
 
 @router.message(Command("donate"))
 async def cmd_donate(message: Message) -> None:
