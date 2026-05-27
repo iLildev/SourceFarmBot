@@ -1,4 +1,5 @@
 import logging
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from config import DATABASE_URL, DB_CONNECT_ARGS
@@ -18,6 +19,9 @@ async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by BIGINT DEFAULT NULL")
+        )
     logger.info("Database tables created / verified.")
 
 

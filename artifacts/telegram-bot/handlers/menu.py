@@ -3,7 +3,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 
 from keyboards.menu_kb import menu_kb, back_to_menu_kb
-from services.user_service import get_user
+from services.user_service import get_user, get_referral_count, REFERRAL_BONUS_REFERRER, REFERRAL_BONUS_NEW_USER
 
 logger = logging.getLogger(__name__)
 router = Router(name="menu")
@@ -112,6 +112,8 @@ async def show_referral(callback: CallbackQuery) -> None:
     tg = callback.from_user
     db_user = await get_user(tg.id)
     seeds = db_user.points if db_user else 0
+    ref_count = await get_referral_count(tg.id)
+    earned_from_refs = ref_count * REFERRAL_BONUS_REFERRER
 
     bot_info = await callback.bot.get_me()
     ref_link = f"https://t.me/{bot_info.username}?start=ref{tg.id}"
@@ -122,9 +124,14 @@ async def show_referral(callback: CallbackQuery) -> None:
         f"🔗 <b>رابط الإحالة الخاص بك:</b>\n"
         f"<code>{ref_link}</code>\n\n"
         "📊 <b>إحصائياتك:</b>\n"
-        "  • الأصدقاء المدعوون:  <code>0</code>\n"
+        f"  • الأصدقاء المدعوون:  <b>{ref_count}</b>\n"
+        f"  • البذور المكتسبة:   <code>{earned_from_refs:,} بذرة</code>\n"
         f"  • رصيدك الحالي:      <code>{seeds:,} بذرة</code>\n\n"
-        "🎁 اكسب <b>50 بذرة</b> عن كل صديق يسجّل! (= 0.50$)"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"🎁 <b>مكافآت الإحالة:</b>\n"
+        f"  • أنت تحصل على:   <b>+{REFERRAL_BONUS_REFERRER} بذرة</b> لكل صديق\n"
+        f"  • صديقك يحصل على: <b>+{REFERRAL_BONUS_NEW_USER} بذرة</b> إضافية\n\n"
+        "شارك الرابط وابدأ الكسب! 🚀"
     )
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
     await callback.answer()
