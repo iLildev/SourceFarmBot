@@ -9,17 +9,25 @@ logger = logging.getLogger(__name__)
 router = Router(name="source_tree")
 
 
+def _rating_line(rating) -> str:
+    if rating is None:
+        return "⭐ <b>التقييم:</b> <i>لا يوجد بعد</i>\n"
+    stars = "⭐" * round(rating)
+    return f"⭐ <b>التقييم:</b> {stars} <code>({rating})</code>\n"
+
+
 def _render_source(source: dict, index: int, total: int) -> str:
-    stars = "⭐" * round(source["rating"])
     tags_line = "  ".join(f"#{t}" for t in source.get("tags", [])[:4])
+    installs  = source["installs"]
+    inst_text = f"<code>{installs:,}</code>" if installs > 0 else "<i>جديد — كن أول مثبِّت!</i>"
     return (
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"📦 <b>{source['name']}</b>  <code>v{source['version']}</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🏷  <b>الفئة:</b>   {source['category']}\n"
         f"🌱 <b>السعر:</b>   <code>{source['points']:,} بذرة</code>\n"
-        f"📥 <b>التثبيت:</b> <code>{source['installs']:,}</code>\n"
-        f"⭐ <b>التقييم:</b> {stars} <code>({source['rating']})</code>\n"
+        f"📥 <b>التثبيت:</b> {inst_text}\n"
+        f"{_rating_line(source['rating'])}"
         f"👤 <b>المطوّر:</b> {source['author']}\n\n"
         f"📝 {source['description']}\n\n"
         f"<i>{tags_line}</i>"
@@ -40,8 +48,8 @@ def _render_detail(source: dict) -> str:
         f"👤 <b>المطوّر:</b>    {source['author']}\n"
         f"🏷  <b>الفئة:</b>     {source['category']}\n"
         f"🌱 <b>السعر:</b>     <code>{source['points']:,} بذرة</code>\n"
-        f"📥 <b>التثبيتات:</b> <code>{source['installs']:,}</code>\n"
-        f"⭐ <b>التقييم:</b>   <code>{source['rating']}/5.0</code>\n\n"
+        f"📥 <b>التثبيتات:</b> {('<code>' + str(source['installs']) + '</code>') if source['installs'] > 0 else '<i>جديد — كن أول مثبِّت!</i>'}\n"
+        f"{_rating_line(source['rating'])}\n"
         f"📝 <b>الوصف:</b>\n{source['description']}\n\n"
         f"✨ <b>الميزات:</b>\n{features_text}"
     ]

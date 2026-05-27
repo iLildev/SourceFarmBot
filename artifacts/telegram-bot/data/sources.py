@@ -29,7 +29,7 @@ SOURCES: list[Source] = [
         "category": "🛡 حماية",
         "points": 750,
         "installs": 0,
-        "rating": 5.0,
+        "rating": None,
         "author": "SourceFarm",
         "version": "1.0.0",
         "github_url": "",
