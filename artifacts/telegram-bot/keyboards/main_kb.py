@@ -15,16 +15,16 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
 def welcome_inline_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="⚡ البدء بدون كود",   callback_data="w_studio"),
             InlineKeyboardButton(text="👨‍💻 رفع سورس كود",   callback_data="w_realdev"),
+            InlineKeyboardButton(text="⚡ البدء بدون كود",   callback_data="w_studio"),
         ],
         [
-            InlineKeyboardButton(text="🛒 سوق السورسات",    callback_data="w_source_tree"),
             InlineKeyboardButton(text="💎 الخطة والأسعار",  callback_data="w_plan"),
+            InlineKeyboardButton(text="🛒 سوق السورسات",    callback_data="w_source_tree"),
         ],
         [
-            InlineKeyboardButton(text="📚 دليل الاستخدام",  callback_data="w_help"),
             InlineKeyboardButton(text="⚙️ الإعدادات",       callback_data="w_settings"),
+            InlineKeyboardButton(text="📚 دليل الاستخدام",  callback_data="w_help"),
         ],
         [
             InlineKeyboardButton(text="ℹ️ معلومات المنصة",  callback_data="w_platform_info"),
