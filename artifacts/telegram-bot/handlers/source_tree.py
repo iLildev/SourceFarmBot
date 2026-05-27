@@ -104,19 +104,6 @@ async def show_details(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("install_"))
-async def install_source(callback: CallbackQuery) -> None:
-    source_id = int(callback.data.split("_")[-1])
-    source = next((s for s in SOURCES if s["id"] == source_id), None)
-    if not source:
-        await callback.answer("المصدر غير موجود", show_alert=True)
-        return
-    await callback.answer(
-        f"📦 يتم تثبيت «{source['name']}»\n🌱 سيُخصم {source['points']:,} بذرة",
-        show_alert=True,
-    )
-
-
 @router.callback_query(F.data == "noop")
 async def noop(callback: CallbackQuery) -> None:
     await callback.answer()

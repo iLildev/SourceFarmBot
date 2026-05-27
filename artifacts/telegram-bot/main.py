@@ -9,7 +9,7 @@ from aiogram.types import BotCommand
 
 from config import BOT_TOKEN, LOG_LEVEL
 from database.session import init_db
-from handlers import start, source_tree, mode, menu, commands, admin, report, donate, fallback
+from handlers import start, source_tree, mode, menu, commands, admin, report, donate, install, fallback
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
@@ -48,6 +48,7 @@ async def main() -> None:
     dp.include_router(commands.router)
     dp.include_router(report.router)
     dp.include_router(donate.router)
+    dp.include_router(install.router)
     dp.include_router(source_tree.router)
     dp.include_router(mode.router)
     dp.include_router(menu.router)
