@@ -3,7 +3,7 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 
-from keyboards.main_kb import main_menu_kb
+from keyboards.main_kb import main_menu_kb, welcome_inline_kb
 from services.user_service import get_or_create_user, add_seeds, WELCOME_SEEDS, REFERRAL_BONUS_NEW_USER
 
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ async def cmd_start(message: Message) -> None:
         text = WELCOME_TEXT.format(name=name)
         logger.info("Returning user: tg_id=%s seeds=%s", tg_user.id, user.points)
 
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text, reply_markup=welcome_inline_kb(), parse_mode="HTML")
     await message.answer("👇 اختر من القائمة:", reply_markup=main_menu_kb())
 
 

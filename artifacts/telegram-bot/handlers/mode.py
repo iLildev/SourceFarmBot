@@ -28,28 +28,6 @@ async def show_mode_msg(message: Message) -> None:
     await message.answer(MODE_TEXT, reply_markup=mode_select_kb(), parse_mode="HTML")
 
 
-@router.message(F.text == "⚡ البدء بدون كود")
-async def show_studio_msg(message: Message) -> None:
-    text = (
-        "🧩 <b>Studio Mode</b>\n"
-        "━━━━━━━━━━━\n\n"
-        "وضع بدون كود — أدِر بوتاتك بنقرة واحدة.\n\n"
-        "اختر أحد الخيارات أدناه:"
-    )
-    await message.answer(text, reply_markup=studio_mode_kb(), parse_mode="HTML")
-
-
-@router.message(F.text == "👨‍💻 رفع سورس كود")
-async def show_realdev_msg(message: Message) -> None:
-    text = (
-        "⚡ <b>RealDev Mode</b>\n"
-        "━━━━━━━━━━━\n\n"
-        "وضع المطورين المتقدم — تحكم كامل في كل شيء.\n\n"
-        "اختر الأداة المطلوبة:"
-    )
-    await message.answer(text, reply_markup=realdev_mode_kb(), parse_mode="HTML")
-
-
 @router.callback_query(F.data == "mode")
 async def show_mode(callback: CallbackQuery) -> None:
     await callback.message.edit_text(MODE_TEXT, reply_markup=mode_select_kb(), parse_mode="HTML")
