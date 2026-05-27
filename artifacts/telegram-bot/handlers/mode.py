@@ -39,8 +39,7 @@ async def show_studio(callback: CallbackQuery) -> None:
     text = (
         "🧩 <b>Studio Mode</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
-        "وضع بدون كود — أدِر بوتاتك بنقرة واحدة.\n\n"
-        "اختر أحد الخيارات أدناه:"
+        "وضع بدون كود — أدِر بوتاتك بنقرة واحدة."
     )
     await callback.message.edit_text(text, reply_markup=studio_mode_kb(), parse_mode="HTML")
     await callback.answer()
@@ -51,8 +50,7 @@ async def show_realdev(callback: CallbackQuery) -> None:
     text = (
         "⚡ <b>RealDev Mode</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
-        "وضع المطورين المتقدم — تحكم كامل في كل شيء.\n\n"
-        "اختر الأداة المطلوبة:"
+        "وضع المطورين المتقدم — تحكم كامل في كل شيء."
     )
     await callback.message.edit_text(text, reply_markup=realdev_mode_kb(), parse_mode="HTML")
     await callback.answer()

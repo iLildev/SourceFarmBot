@@ -15,8 +15,7 @@ router = Router(name="menu")
 
 MENU_TEXT = (
     "☰ <b>القائمة الرئيسية</b>\n"
-    "━━━━━━━━━━━━━━━━━\n\n"
-    "اختر القسم الذي تريد الوصول إليه:"
+    "━━━━━━━━━━━━━━━━━"
 )
 
 ARABIC_MONTHS = [
@@ -96,8 +95,7 @@ async def show_lang_select(callback: CallbackQuery) -> None:
     ])
     await callback.message.edit_text(
         "🌐 <b>اللغة / Language</b>\n"
-        "━━━━━━━━━━━━━━━━━\n\n"
-        "اختر لغة الواجهة:",
+        "━━━━━━━━━━━━━━━━━",
         reply_markup=kb,
         parse_mode="HTML",
     )

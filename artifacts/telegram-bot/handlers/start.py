@@ -95,7 +95,6 @@ async def cmd_start(message: Message) -> None:
         logger.info("Returning user: tg_id=%s seeds=%s", tg_user.id, user.points)
 
     await message.answer(text, reply_markup=welcome_inline_kb(), parse_mode="HTML")
-    await message.answer("👇 اختر من القائمة:", reply_markup=main_menu_kb())
 
 
 # ── Welcome inline button handlers (open new message, never touch welcome) ──
@@ -105,8 +104,7 @@ async def w_studio(callback: CallbackQuery) -> None:
     await callback.message.answer(
         "🧩 <b>Studio Mode</b>\n"
         "━━━━━━━━━━━\n\n"
-        "وضع بدون كود — أدِر بوتاتك بنقرة واحدة.\n\n"
-        "اختر أحد الخيارات أدناه:",
+        "وضع بدون كود — أدِر بوتاتك بنقرة واحدة.",
         reply_markup=studio_mode_kb(),
         parse_mode="HTML",
     )
@@ -118,8 +116,7 @@ async def w_realdev(callback: CallbackQuery) -> None:
     await callback.message.answer(
         "⚡ <b>RealDev Mode</b>\n"
         "━━━━━━━━━━━\n\n"
-        "وضع المطورين المتقدم — تحكم كامل في كل شيء.\n\n"
-        "اختر الأداة المطلوبة:",
+        "وضع المطورين المتقدم — تحكم كامل في كل شيء.",
         reply_markup=realdev_mode_kb(),
         parse_mode="HTML",
     )
@@ -264,8 +261,7 @@ async def w_supporters(callback: CallbackQuery) -> None:
 async def w_lang(callback: CallbackQuery) -> None:
     await callback.message.answer(
         "🌐 <b>اللغة / Language</b>\n"
-        "━━━━━━━━━━━━━━━━━\n\n"
-        "اختر لغة الواجهة:",
+        "━━━━━━━━━━━━━━━━━",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="🇸🇦 العربية ✅",        callback_data="lang_ar"),
@@ -288,7 +284,7 @@ async def close_msg(callback: CallbackQuery) -> None:
 async def back_to_main(callback: CallbackQuery) -> None:
     await callback.message.delete()
     await callback.message.answer(
-        "🏠 اختر من القائمة أدناه 👇",
+        "🏠 القائمة الرئيسية",
         reply_markup=main_menu_kb(),
     )
     await callback.answer()
