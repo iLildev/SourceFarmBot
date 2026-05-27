@@ -1,0 +1,19 @@
+{
+  "id": 2,
+  "name": "SF Group Manager",
+  "version": "1.0.0",
+  "author": "SourceFarm",
+  "category": "management",
+  "entry": "main.py",
+  "min_python": "3.10",
+  "requires": ["aiogram>=3.0"],
+  "description": "Professional group management bot by SourceFarm",
+  "config_schema": {
+    "welcome_enabled":    {"type": "bool",   "default": true,  "label": "تفعيل رسالة الترحيب"},
+    "welcome_text":       {"type": "str",    "default": "👋 مرحباً {name} في {chat}!", "label": "نص الترحيب ({name} و {chat} متغيران)"},
+    "rules_text":         {"type": "str",    "default": "📋 لا توجد قواعد محددة بعد.", "label": "قواعد المجموعة"},
+    "warn_limit":         {"type": "int",    "default": 3,     "label": "عدد التحذيرات قبل الحظر"},
+    "delete_service_msgs":{"type": "bool",   "default": true,  "label": "حذف رسائل الانضمام/المغادرة"},
+    "admin_only_cmds":    {"type": "bool",   "default": true,  "label": "الأوامر للمشرفين فقط"}
+  }
+}
