@@ -15,6 +15,8 @@ ADMIN_IDS: set[int] = {
     int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()
 }
 
+OWNER_USERNAME: str = os.environ.get("OWNER_USERNAME", "")
+
 
 def _build_async_db_url(url: str) -> tuple[str, dict]:
     """Convert any postgres:// URL to postgresql+asyncpg:// and strip sslmode."""

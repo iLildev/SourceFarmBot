@@ -78,22 +78,3 @@ async def cmd_top(message: Message) -> None:
 
 
 
-@router.message(Command("donate"))
-async def cmd_donate(message: Message) -> None:
-    await message.answer(
-        "💚 <b>ادعم SourceFarm</b>\n"
-        "━━━━━━━━━━━━━━━━━\n\n"
-        "مساهمتك تساعدنا على:\n"
-        "  🌱 تطوير مصادر جديدة\n"
-        "  ⚡ تحسين الأداء\n"
-        "  🛡 تعزيز الأمان\n\n"
-        "━━━━━━━━━━━━━━━━━\n"
-        "💳 <b>طرق الدعم:</b>\n"
-        "  • USDT (TRC20):\n"
-        "    <code>TXxxxxxxxxxxxxxxxxxxxx</code>\n\n"
-        "  • BTC:\n"
-        "    <code>1Xxxxxxxxxxxxxxxxxxxxx</code>\n\n"
-        "كل مبلغ مهما صغر يُحدث فرقاً ❤️\n"
-        "شكراً لدعمك!",
-        parse_mode="HTML",
-    )
