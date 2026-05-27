@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Telegram token: {bot_id}:{secret}
 # bot_id: 8-12 digits, secret: 35-46 chars of [A-Za-z0-9_-]
-TOKEN_RE = re.compile(r"^\d{8,12}:[A-Za-z0-9_-]{25,50}$")
+TOKEN_RE = re.compile(r"^\d{5,15}:[A-Za-z0-9_-]{25,50}$")
 
 
 class InstallError(Exception):

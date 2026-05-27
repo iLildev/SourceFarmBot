@@ -120,6 +120,7 @@ async def _finish_report(
 
 @router.message(Command("report"))
 async def cmd_report(message: Message, state: FSMContext, bot: Bot) -> None:
+    await state.clear()
     user      = message.from_user
     user_name = user.first_name or "مستخدم"
 

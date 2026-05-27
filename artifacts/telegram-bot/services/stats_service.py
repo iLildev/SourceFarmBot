@@ -19,26 +19,26 @@ async def get_platform_stats() -> dict:
 
         today = datetime.utcnow().date()
         new_today: int = (await session.execute(
-            select(func.count()).where(func.date(User.created_at) == today)
+            select(func.count()).select_from(User).where(func.date(User.created_at) == today)
         )).scalar_one()
 
         week_ago = datetime.utcnow() - timedelta(days=7)
         new_week: int = (await session.execute(
-            select(func.count()).where(User.created_at >= week_ago)
+            select(func.count()).select_from(User).where(User.created_at >= week_ago)
         )).scalar_one()
 
         # Active users = seen in the last 24 hours
         day_ago = datetime.utcnow() - timedelta(hours=24)
         active_24h: int = (await session.execute(
-            select(func.count()).where(User.last_seen >= day_ago)
+            select(func.count()).select_from(User).where(User.last_seen >= day_ago)
         )).scalar_one()
 
         total_seeds: int = (await session.execute(
-            select(func.coalesce(func.sum(User.points), 0))
+            select(func.coalesce(func.sum(User.points), 0)).select_from(User)
         )).scalar_one()
 
         total_referrals: int = (await session.execute(
-            select(func.count()).where(User.referred_by.isnot(None))
+            select(func.count()).select_from(User).where(User.referred_by.isnot(None))
         )).scalar_one()
 
         # Bot statistics

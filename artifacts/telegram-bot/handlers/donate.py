@@ -109,6 +109,7 @@ def _confirm_text(stars: int) -> str:
 
 @router.message(Command("donate"))
 async def cmd_donate(message: Message, state: FSMContext) -> None:
+    await state.clear()
     await state.set_state(DonateStates.waiting_amount)
     lines = [
         "💚 <b>ادعم SourceFarm</b>",
@@ -266,6 +267,17 @@ async def cancel_donate(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery, bot: Bot) -> None:
+    payload = query.invoice_payload
+    if not (payload.startswith("donate_") or payload.startswith("gift_")):
+        await bot.answer_pre_checkout_query(query.id, ok=False, error_message="طلب غير صالح.")
+        return
+    try:
+        parts = payload.split("_")
+        int(parts[1])
+        int(parts[2])
+    except (IndexError, ValueError):
+        await bot.answer_pre_checkout_query(query.id, ok=False, error_message="بيانات الدفع تالفة.")
+        return
     await bot.answer_pre_checkout_query(query.id, ok=True)
 
 

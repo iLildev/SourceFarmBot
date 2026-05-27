@@ -184,8 +184,8 @@ async def adm_users(callback: CallbackQuery) -> None:
     lines = ["👥 <b>آخر المستخدمين المسجَّلين:</b>\n"]
     for u in users:
         uname = f"@{u.username}" if u.username else f"id:{u.telegram_id}"
-        date  = u.created_at.strftime("%d/%m %H:%M") if u.created_at else "—"
-        seen  = u.last_seen.strftime("%d/%m %H:%M") if u.last_seen else "—"
+        date  = u.created_at.strftime("%d/%m/%Y %H:%M") if u.created_at else "—"
+        seen  = u.last_seen.strftime("%d/%m/%Y %H:%M") if u.last_seen else "—"
         ref   = " 🔗" if u.referred_by else ""
         lines.append(
             f"• <b>{u.first_name}</b> ({uname}){ref}\n"
@@ -215,7 +215,7 @@ async def adm_bots(callback: CallbackQuery) -> None:
         lines.append("لا توجد بوتات بعد.")
     for b in bots:
         status = "🟢" if b.is_running else "🔴"
-        date   = b.created_at.strftime("%d/%m %H:%M") if b.created_at else "—"
+        date   = b.created_at.strftime("%d/%m/%Y %H:%M") if b.created_at else "—"
         lines.append(f"{status} <b>{b.name}</b>  |  📅 {date}\n")
     await callback.message.edit_text(
         "\n".join(lines), reply_markup=_back_to_admin_kb(), parse_mode="HTML"
@@ -233,7 +233,7 @@ async def adm_audit(callback: CallbackQuery) -> None:
     if not logs:
         lines.append("لا توجد عمليات مسجَّلة بعد.")
     for entry in logs:
-        dt      = entry.created_at.strftime("%d/%m %H:%M") if entry.created_at else "—"
+        dt      = entry.created_at.strftime("%d/%m/%Y %H:%M") if entry.created_at else "—"
         target  = f" → <code>{entry.target_id}</code>" if entry.target_id else ""
         details = ""
         if entry.details:

@@ -110,8 +110,8 @@ def _coupon_detail_kb(coupon) -> InlineKeyboardMarkup:
 
 def _delete_confirm_kb(code: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ نعم، احذفه",      callback_data=f"adm_coupon_delete_confirm_{code}"),
-        InlineKeyboardButton(text="❌ لا",              callback_data=f"adm_coupon_detail_{code}"),
+        InlineKeyboardButton(text="✅ نعم، احذفه", callback_data=f"adm_coupon_delete_confirm_{code}"),
+        InlineKeyboardButton(text="❌ لا",         callback_data=f"adm_coupons"),
     ]])
 
 
