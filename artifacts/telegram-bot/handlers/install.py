@@ -13,6 +13,7 @@ from services.install_service import (
     is_valid_token_format,
 )
 from keyboards.main_kb import main_menu_kb
+from config import ADMIN_IDS
 
 logger = logging.getLogger(__name__)
 router = Router(name="install")
@@ -48,14 +49,16 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer("المصدر غير موجود", show_alert=True)
         return
 
-    cost = source["points"]
-    seeds = await get_user_seeds(callback.from_user.id)
+    tg_id = callback.from_user.id
+    is_admin = tg_id in ADMIN_IDS
+    cost = 0 if is_admin else source["points"]
+    seeds = await get_user_seeds(tg_id)
 
-    if seeds < cost:
-        shortage = cost - seeds
+    if not is_admin and seeds < source["points"]:
+        shortage = source["points"] - seeds
         await callback.answer(
             f"🌱 رصيدك غير كافٍ!\n\n"
-            f"السعر:   {cost:,} بذرة\n"
+            f"السعر:   {source['points']:,} بذرة\n"
             f"رصيدك:  {seeds:,} بذرة\n"
             f"يُنقصك: {shortage:,} بذرة",
             show_alert=True,
@@ -65,12 +68,16 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(InstallStates.waiting_for_token)
     await state.update_data(source_id=source_id, source_name=source["name"], cost=cost)
 
+    admin_note = "\n🛡 <i>وضع الأدمن — التثبيت مجاني</i>\n" if is_admin else ""
+    cost_line  = "مجاني 🎁" if is_admin else f"<code>{cost:,} بذرة</code>"
+
     await callback.message.answer(
         f"📦 <b>تثبيت: {source['name']}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🏷  الفئة:   {source['category']}\n"
-        f"🌱 السعر:   <code>{cost:,} بذرة</code>\n"
-        f"💰 رصيدك:  <code>{seeds:,} بذرة</code>\n\n"
+        f"🌱 السعر:   {cost_line}\n"
+        f"💰 رصيدك:  <code>{seeds:,} بذرة</code>\n"
+        f"{admin_note}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"للمتابعة، أرسل <b>توكن البوت</b> الخاص بك:\n\n"
         f"📌 <b>كيف أحصل على التوكن؟</b>\n"

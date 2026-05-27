@@ -2,8 +2,12 @@ import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 
-from keyboards.menu_kb import menu_kb, back_to_menu_kb
+from keyboards.menu_kb import (
+    menu_kb, back_to_menu_kb,
+    mybots_kb, bot_detail_kb, bot_delete_confirm_kb,
+)
 from services.user_service import get_user, get_referral_count, REFERRAL_BONUS_REFERRER, REFERRAL_BONUS_NEW_USER
+from services.bot_service import get_user_bots, get_bot_by_id, toggle_bot_running, delete_bot
 
 logger = logging.getLogger(__name__)
 router = Router(name="menu")
@@ -27,9 +31,10 @@ def _format_date(dt) -> str:
 
 
 def _seeds_to_usd(seeds: int) -> str:
-    usd = seeds / 100
-    return f"{usd:.2f}$"
+    return f"{seeds / 100:.2f}$"
 
+
+# ─────────────────────────── Menu root ───────────────────────────
 
 @router.message(F.text == "☰ Menu")
 async def show_menu_msg(message: Message) -> None:
@@ -42,15 +47,18 @@ async def show_menu(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+# ─────────────────────────── Profile ─────────────────────────────
+
 @router.callback_query(F.data == "menu_profile")
 async def show_profile(callback: CallbackQuery) -> None:
     tg = callback.from_user
     db_user = await get_user(tg.id)
 
-    username = f"@{tg.username}" if tg.username else "—"
-    seeds = db_user.points if db_user else 0
-    joined = _format_date(db_user.created_at) if db_user else "—"
+    username  = f"@{tg.username}" if tg.username else "—"
+    seeds     = db_user.points if db_user else 0
+    joined    = _format_date(db_user.created_at) if db_user else "—"
     usd_value = _seeds_to_usd(seeds)
+    bots      = await get_user_bots(tg.id)
 
     text = (
         "👤 <b>الملف الشخصي</b>\n"
@@ -60,12 +68,136 @@ async def show_profile(callback: CallbackQuery) -> None:
         f"🆔 <b>ID:</b>        <code>{tg.id}</code>\n"
         f"📋 <b>الخطة:</b>     <b>Free</b>\n"
         f"🌱 <b>البذور:</b>    <code>{seeds:,} بذرة</code>  <i>≈ {usd_value}</i>\n"
+        f"🤖 <b>البوتات:</b>   <b>{len(bots)}</b>\n"
         f"📅 <b>الانضمام:</b>  {joined}\n\n"
         "🔒 <i>الحساب موثَّق وآمن</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
     await callback.answer()
 
+
+# ─────────────────────────── My Bots ─────────────────────────────
+
+@router.callback_query(F.data == "menu_mybots")
+async def show_mybots(callback: CallbackQuery) -> None:
+    bots = await get_user_bots(callback.from_user.id)
+
+    if not bots:
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        empty_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🌲 تثبيت أول بوت", callback_data="source_tree")],
+            [InlineKeyboardButton(text="🔙 القائمة",        callback_data="menu")],
+        ])
+        await callback.message.edit_text(
+            "🤖 <b>بوتاتي</b>\n"
+            "━━━━━━━━━━━━━━━━━\n\n"
+            "لا يوجد لديك بوتات مثبّتة بعد.\n\n"
+            "📦 تصفّح Source Tree واختر سورساً لتثبيته.",
+            reply_markup=empty_kb,
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    running = sum(1 for b in bots if b.is_running)
+    stopped = len(bots) - running
+
+    text = (
+        f"🤖 <b>بوتاتي</b>  <code>({len(bots)})</code>\n"
+        f"━━━━━━━━━━━━━━━━━\n\n"
+        f"🟢 شغّال: <b>{running}</b>   🔴 متوقف: <b>{stopped}</b>\n\n"
+        "اضغط على أي بوت لإدارته:"
+    )
+    await callback.message.edit_text(text, reply_markup=mybots_kb(bots), parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("bot_detail_"))
+async def show_bot_detail(callback: CallbackQuery) -> None:
+    bot_id = int(callback.data.split("_")[-1])
+    bot = await get_bot_by_id(bot_id, callback.from_user.id)
+
+    if not bot:
+        await callback.answer("البوت غير موجود", show_alert=True)
+        return
+
+    status_icon = "🟢 شغّال" if bot.is_running else "🔴 متوقف"
+    mode_label  = "🧩 Studio Mode" if bot.mode == "studio" else "⚡ RealDev Mode"
+    created     = _format_date(bot.created_at)
+    hint        = bot.token_hint or "—"
+
+    text = (
+        f"🤖 <b>{bot.name}</b>\n"
+        f"━━━━━━━━━━━━━━━━━\n\n"
+        f"📡 <b>الحالة:</b>    {status_icon}\n"
+        f"⚙️ <b>الوضع:</b>    {mode_label}\n"
+        f"🔑 <b>التوكن:</b>   <code>{hint}…</code>\n"
+        f"📅 <b>التثبيت:</b>  {created}\n"
+    )
+    await callback.message.edit_text(
+        text, reply_markup=bot_detail_kb(bot_id, bot.is_running), parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("bot_start_"))
+async def bot_start(callback: CallbackQuery) -> None:
+    bot_id = int(callback.data.split("_")[-1])
+    bot = await toggle_bot_running(bot_id, callback.from_user.id, running=True)
+    if not bot:
+        await callback.answer("البوت غير موجود", show_alert=True)
+        return
+    await callback.answer("▶️ تم تشغيل البوت", show_alert=False)
+    await show_bot_detail.__wrapped__(callback) if hasattr(show_bot_detail, "__wrapped__") else None
+    # Re-render detail
+    from aiogram.types import CallbackQuery as CQ
+    callback.data = f"bot_detail_{bot_id}"
+    await show_bot_detail(callback)
+
+
+@router.callback_query(F.data.startswith("bot_stop_"))
+async def bot_stop(callback: CallbackQuery) -> None:
+    bot_id = int(callback.data.split("_")[-1])
+    bot = await toggle_bot_running(bot_id, callback.from_user.id, running=False)
+    if not bot:
+        await callback.answer("البوت غير موجود", show_alert=True)
+        return
+    await callback.answer("⏹ تم إيقاف البوت", show_alert=False)
+    callback.data = f"bot_detail_{bot_id}"
+    await show_bot_detail(callback)
+
+
+@router.callback_query(F.data.startswith("bot_delete_") & ~F.data.startswith("bot_delete_confirm_"))
+async def bot_delete_ask(callback: CallbackQuery) -> None:
+    bot_id = int(callback.data.split("_")[-1])
+    bot = await get_bot_by_id(bot_id, callback.from_user.id)
+    if not bot:
+        await callback.answer("البوت غير موجود", show_alert=True)
+        return
+    await callback.message.edit_text(
+        f"🗑 <b>حذف البوت</b>\n\n"
+        f"هل أنت متأكد من حذف <b>{bot.name}</b>؟\n"
+        "لا يمكن التراجع عن هذا الإجراء.",
+        reply_markup=bot_delete_confirm_kb(bot_id),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("bot_delete_confirm_"))
+async def bot_delete_confirm(callback: CallbackQuery) -> None:
+    bot_id = int(callback.data.split("_")[-1])
+    deleted = await delete_bot(bot_id, callback.from_user.id)
+    if not deleted:
+        await callback.answer("البوت غير موجود", show_alert=True)
+        return
+    await callback.answer("🗑 تم حذف البوت", show_alert=True)
+    # Back to mybots
+    callback.data = "menu_mybots"
+    await show_mybots(callback)
+
+
+# ─────────────────────────── Plan ────────────────────────────────
 
 @router.callback_query(F.data == "menu_plan")
 async def show_plan(callback: CallbackQuery) -> None:
@@ -86,10 +218,12 @@ async def show_plan(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+# ─────────────────────────── Wallet ──────────────────────────────
+
 @router.callback_query(F.data == "menu_wallet")
 async def show_wallet(callback: CallbackQuery) -> None:
     db_user = await get_user(callback.from_user.id)
-    seeds = db_user.points if db_user else 0
+    seeds     = db_user.points if db_user else 0
     usd_value = _seeds_to_usd(seeds)
 
     text = (
@@ -107,13 +241,15 @@ async def show_wallet(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+# ─────────────────────────── Referral ────────────────────────────
+
 @router.callback_query(F.data == "menu_referral")
 async def show_referral(callback: CallbackQuery) -> None:
-    tg = callback.from_user
-    db_user = await get_user(tg.id)
-    seeds = db_user.points if db_user else 0
+    tg        = callback.from_user
+    db_user   = await get_user(tg.id)
+    seeds     = db_user.points if db_user else 0
     ref_count = await get_referral_count(tg.id)
-    earned_from_refs = ref_count * REFERRAL_BONUS_REFERRER
+    earned    = ref_count * REFERRAL_BONUS_REFERRER
 
     bot_info = await callback.bot.get_me()
     ref_link = f"https://t.me/{bot_info.username}?start=ref{tg.id}"
@@ -125,7 +261,7 @@ async def show_referral(callback: CallbackQuery) -> None:
         f"<code>{ref_link}</code>\n\n"
         "📊 <b>إحصائياتك:</b>\n"
         f"  • الأصدقاء المدعوون:  <b>{ref_count}</b>\n"
-        f"  • البذور المكتسبة:   <code>{earned_from_refs:,} بذرة</code>\n"
+        f"  • البذور المكتسبة:   <code>{earned:,} بذرة</code>\n"
         f"  • رصيدك الحالي:      <code>{seeds:,} بذرة</code>\n\n"
         "━━━━━━━━━━━━━━━━━\n"
         f"🎁 <b>مكافآت الإحالة:</b>\n"
@@ -136,6 +272,8 @@ async def show_referral(callback: CallbackQuery) -> None:
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
     await callback.answer()
 
+
+# ─────────────────────────── Codes ───────────────────────────────
 
 @router.callback_query(F.data == "menu_codes")
 async def show_codes(callback: CallbackQuery) -> None:
@@ -152,13 +290,17 @@ async def show_codes(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+# ─────────────────────────── Help ────────────────────────────────
+
 @router.callback_query(F.data == "menu_help")
 async def show_help(callback: CallbackQuery) -> None:
     text = (
         "❓ <b>المساعدة والدعم</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
         "📚 <b>دليل الاستخدام:</b>\n"
-        "  • /start — القائمة الرئيسية\n\n"
+        "  • /start — القائمة الرئيسية\n"
+        "  • /search — البحث في المصادر\n"
+        "  • /top — أفضل المصادر\n\n"
         "💬 <b>التواصل مع الدعم:</b>\n"
         "  @sourcefarm_support\n\n"
         "📢 <b>قناة التحديثات:</b>\n"
@@ -169,6 +311,8 @@ async def show_help(callback: CallbackQuery) -> None:
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
     await callback.answer()
 
+
+# ─────────────────────────── Settings ────────────────────────────
 
 @router.callback_query(F.data == "menu_settings")
 async def show_settings(callback: CallbackQuery) -> None:
