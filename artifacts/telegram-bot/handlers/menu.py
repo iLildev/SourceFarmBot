@@ -42,6 +42,122 @@ async def show_menu_msg(message: Message) -> None:
     await message.answer(MENU_TEXT, reply_markup=menu_kb(), parse_mode="HTML")
 
 
+@router.message(F.text == "💎 الخطة والأسعار")
+async def show_plan_msg(message: Message) -> None:
+    text = (
+        "📋 <b>خطتك الحالية</b>\n"
+        "━━━━━━━━━━━\n\n"
+        "🆓 <b>Free Plan</b>\n\n"
+        "✅ بوت واحد\n"
+        "✅ 3 إضافات\n"
+        "✅ دعم أساسي\n"
+        "❌ Studio Mode متقدم\n"
+        "❌ RealDev بلا حدود\n"
+        "❌ تحليلات متقدمة\n\n"
+        "━━━━━━━━━━━\n"
+        "⬆️ <b>ترقية الخطة قريباً</b>"
+    )
+    await message.answer(text, parse_mode="HTML")
+
+
+@router.message(F.text == "📚 دليل الاستخدام")
+async def show_help_msg(message: Message) -> None:
+    text = (
+        "❓ <b>المساعدة والدعم</b>\n"
+        "━━━━━━━━━━━\n\n"
+        "📚 <b>دليل الاستخدام:</b>\n"
+        "  • /start — القائمة الرئيسية\n"
+        "  • /search — البحث في المصادر\n"
+        "  • /top — أفضل المصادر\n\n"
+        "💬 <b>التواصل مع الدعم:</b>\n"
+        "  @sourcefarm_support\n\n"
+        "📢 <b>قناة التحديثات:</b>\n"
+        "  @sourcefarm_news\n\n"
+        "🌐 <b>الموقع الرسمي:</b>\n"
+        "  sourcefarm.io (قريباً)"
+    )
+    await message.answer(text, parse_mode="HTML")
+
+
+@router.message(F.text == "⚙️ الإعدادات")
+async def show_settings_msg(message: Message) -> None:
+    text = (
+        "⚙️ <b>الإعدادات</b>\n"
+        "━━━━━━━━━━━\n\n"
+        "🌐 <b>اللغة:</b>          العربية 🇸🇦\n"
+        "🔔 <b>الإشعارات:</b>      مفعّلة ✅\n"
+        "🕶 <b>وضع الخصوصية:</b>  مفعّل ✅\n"
+        "🔐 <b>المصادقة الثنائية:</b> معطّلة ❌\n\n"
+        "━━━━━━━━━━━\n"
+        "<i>تعديل الإعدادات قريباً</i>"
+    )
+    await message.answer(text, parse_mode="HTML")
+
+
+@router.message(F.text == "ℹ️ معلومات المنصة")
+async def show_platform_info_msg(message: Message) -> None:
+    text = (
+        "ℹ️ <b>معلومات المنصة</b>\n"
+        "━━━━━━━━━━━\n\n"
+        "🌿 <b>SourceFarm</b>\n"
+        "منصة تحكم كاملة للبوتات داخل Telegram.\n\n"
+        "📌 <b>الإصدار:</b>       <code>0.1.0 Beta</code>\n"
+        "🌐 <b>الموقع:</b>        sourcefarm.io (قريباً)\n"
+        "📢 <b>قناة الأخبار:</b>  @sourcefarm_news\n"
+        "💬 <b>الدعم:</b>         @sourcefarm_support\n\n"
+        "━━━━━━━━━━━\n"
+        "💰 <b>عملة المنصة:</b>   🌱 بذرة\n"
+        "💱 <b>سعر الصرف:</b>    <code>1$ = 100 بذرة</code>\n\n"
+        "━━━━━━━━━━━\n"
+        "<i>بُنيت بـ ❤️ لمجتمع Telegram العربي</i>"
+    )
+    await message.answer(text, parse_mode="HTML")
+
+
+@router.message(F.text == "الداعمين 🎖️")
+async def show_supporters_msg(message: Message) -> None:
+    text = (
+        "🎖️ <b>داعمو المنصة</b>\n"
+        "━━━━━━━━━━━\n\n"
+        "شكراً لكل من دعم SourceFarm وساهم في نموّها.\n\n"
+        "🥇 <b>الداعمون الذهبيون</b>\n"
+        "   <i>لا يوجد بعد — كن أول داعم!</i>\n\n"
+        "🥈 <b>الداعمون الفضيون</b>\n"
+        "   <i>لا يوجد بعد</i>\n\n"
+        "━━━━━━━━━━━\n"
+        "💚 للدعم: /donate"
+    )
+    await message.answer(text, parse_mode="HTML")
+
+
+@router.message(F.text == "🌐 تغيير اللغة / Language")
+async def show_language_msg(message: Message) -> None:
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🇸🇦 العربية ✅", callback_data="lang_ar"),
+            InlineKeyboardButton(text="🇬🇧 English (قريباً)", callback_data="lang_en_soon"),
+        ],
+    ])
+    await message.answer(
+        "🌐 <b>اللغة / Language</b>\n"
+        "━━━━━━━━━━━\n\n"
+        "اختر لغة الواجهة:",
+        reply_markup=kb,
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "lang_ar")
+async def lang_ar(callback) -> None:
+    await callback.answer("✅ اللغة العربية مفعّلة بالفعل", show_alert=False)
+
+
+@router.callback_query(F.data == "lang_en_soon")
+async def lang_en_soon(callback) -> None:
+    await callback.answer("🚧 اللغة الإنجليزية قيد التطوير — قريباً!", show_alert=True)
+
+
 @router.callback_query(F.data == "menu")
 async def show_menu(callback: CallbackQuery) -> None:
     await callback.message.edit_text(MENU_TEXT, reply_markup=menu_kb(), parse_mode="HTML")

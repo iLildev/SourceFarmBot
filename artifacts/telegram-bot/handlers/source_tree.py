@@ -74,7 +74,7 @@ def _source_index(source_id: int) -> int:
     return next((i for i, s in enumerate(SOURCES) if s["id"] == source_id), 0)
 
 
-@router.message(F.text == "🌲 Source Tree")
+@router.message(F.text.in_({"🌲 Source Tree", "🛒 سوق السورسات"}))
 async def show_source_tree_msg(message: Message) -> None:
     source = SOURCES[0]
     total = len(SOURCES)
