@@ -240,8 +240,7 @@ async def show_wallet(callback: CallbackQuery) -> None:
         "💡 <b>سعر الصرف:</b>    <code>1$ = 100 بذرة</code>\n\n"
         "📊 <b>سجل المعاملات:</b>\n"
         "   لا توجد معاملات بعد.\n\n"
-        "━━━━━━━━━━━━━━━━━\n"
-        "🛒 <b>شراء البذور:</b>  /buy"
+        "━━━━━━━━━━━━━━━━━"
     )
     buy_kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🌱 شراء البذور", callback_data="buy_store")],
@@ -296,7 +295,8 @@ async def show_help(callback: CallbackQuery) -> None:
         "📚 <b>دليل الاستخدام:</b>\n"
         "  • /start — القائمة الرئيسية\n"
         "  • /search — البحث في المصادر\n"
-        "  • /top — أفضل المصادر\n\n"
+        "  • /top — أفضل المصادر\n"
+        "  • 🌱 شراء البذور — من ☰ Menu ← Seed Wallet\n\n"
         "💬 <b>التواصل مع الدعم:</b>\n"
         "  @sourcefarm_support\n\n"
         "📢 <b>قناة التحديثات:</b>\n"

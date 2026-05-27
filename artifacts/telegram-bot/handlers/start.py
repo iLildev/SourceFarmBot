@@ -92,7 +92,8 @@ async def cmd_start(message: Message) -> None:
         text = WELCOME_TEXT.format(name=name)
         logger.info("Returning user: tg_id=%s seeds=%s", tg_user.id, user.points)
 
-    await message.answer(text, reply_markup=main_menu_kb(), parse_mode="HTML")
+    await message.answer(text, parse_mode="HTML")
+    await message.answer("👇 اختر من القائمة:", reply_markup=main_menu_kb())
 
 
 @router.callback_query(F.data == "back_main")

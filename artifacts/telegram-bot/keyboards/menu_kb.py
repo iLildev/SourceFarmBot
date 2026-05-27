@@ -44,7 +44,7 @@ def mybots_kb(bots: list) -> InlineKeyboardMarkup:
                 callback_data=f"bot_detail_{bot.id}",
             )
         ])
-    rows.append([InlineKeyboardButton(text="🔙 رجوع للبروفايل", callback_data="menu_profile")])
+    rows.append([InlineKeyboardButton(text="🔙 رجوع", callback_data="menu_profile")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

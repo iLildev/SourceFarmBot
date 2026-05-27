@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 BOT_COMMANDS = [
     BotCommand(command="start",  description="🏠 القائمة الرئيسية"),
-    BotCommand(command="buy",    description="🌱 شراء البذور"),
     BotCommand(command="search", description="🔍 البحث في المصادر"),
     BotCommand(command="top",    description="🏆 أفضل المصادر"),
     BotCommand(command="report", description="🚨 الإبلاغ عن مشكلة"),
