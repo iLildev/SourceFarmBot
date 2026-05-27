@@ -12,7 +12,8 @@ from services.install_service import (
     install_bot,
     is_valid_token_format,
 )
-from keyboards.main_kb import main_menu_kb
+from services.user_service import get_user
+from services.coupon_service import consume_free_install, consume_discount
 from config import ADMIN_IDS
 
 logger = logging.getLogger(__name__)
@@ -52,38 +53,74 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
 
     tg_id    = callback.from_user.id
     is_admin = tg_id in ADMIN_IDS
-    cost     = 0 if is_admin else source["points"]
     seeds    = await get_user_seeds(tg_id)
+    db_user  = await get_user(tg_id)
 
-    if not is_admin and seeds < source["points"]:
-        shortage = source["points"] - seeds
+    base_cost = source["points"]
+
+    # ── Determine effective cost and benefit ─────────────────────────────────
+    if is_admin:
+        effective_cost = 0
+        benefit_type   = "admin"
+        cost_display   = "مجاني 🎁"
+        benefit_note   = "\n🛡 <i>وضع الأدمن — التثبيت مجاني</i>\n"
+
+    elif db_user and db_user.free_installs > 0:
+        effective_cost = 0
+        benefit_type   = "free_install"
+        cost_display   = "مجاني 📦"
+        benefit_note   = (
+            f"\n📦 <i>لديك <b>{db_user.free_installs}</b> تثبيت مجاني — سيُستهلك واحد</i>\n"
+        )
+
+    elif db_user and db_user.discount_pct > 0:
+        discount       = db_user.discount_pct
+        effective_cost = max(0, int(base_cost * (1 - discount / 100)))
+        benefit_type   = "discount"
+        saved          = base_cost - effective_cost
+        cost_display   = (
+            f"<code>{effective_cost:,} بذرة</code> "
+            f"<s>{base_cost:,}</s>  <i>(خصم {discount}% — وفّرت {saved:,})</i>"
+        )
+        benefit_note   = f"\n🏷 <i>خصم {discount}% مُطبَّق — سيُستهلك بعد التثبيت</i>\n"
+
+    else:
+        effective_cost = base_cost
+        benefit_type   = "none"
+        cost_display   = f"<code>{effective_cost:,} بذرة</code>"
+        benefit_note   = ""
+
+    # ── Check affordability ───────────────────────────────────────────────────
+    if benefit_type not in ("admin", "free_install") and seeds < effective_cost:
+        shortage = effective_cost - seeds
         await callback.answer(
             f"🌱 رصيدك غير كافٍ!\n\n"
-            f"السعر:   {source['points']:,} بذرة\n"
-            f"رصيدك:  {seeds:,} بذرة\n"
-            f"يُنقصك: {shortage:,} بذرة",
+            f"السعر:    {effective_cost:,} بذرة\n"
+            f"رصيدك:   {seeds:,} بذرة\n"
+            f"يُنقصك:  {shortage:,} بذرة",
             show_alert=True,
         )
         return
 
-    # If already in install state → silently override (clear old, start fresh)
-    current = await state.get_state()
-    if current == InstallStates.waiting_for_token.state:
+    # ── Override any existing FSM install state ───────────────────────────────
+    if await state.get_state() == InstallStates.waiting_for_token.state:
         await state.clear()
 
     await state.set_state(InstallStates.waiting_for_token)
-    await state.update_data(source_id=source_id, source_name=source["name"], cost=cost)
-
-    admin_note = "\n🛡 <i>وضع الأدمن — التثبيت مجاني</i>\n" if is_admin else ""
-    cost_line  = "مجاني 🎁" if is_admin else f"<code>{cost:,} بذرة</code>"
+    await state.update_data(
+        source_id=source_id,
+        source_name=source["name"],
+        cost=effective_cost,
+        benefit_type=benefit_type,
+    )
 
     await callback.message.answer(
         f"📦 <b>تثبيت: {source['name']}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🏷  الفئة:   {source['category']}\n"
-        f"🌱 السعر:   {cost_line}\n"
+        f"🌱 السعر:   {cost_display}\n"
         f"💰 رصيدك:  <code>{seeds:,} بذرة</code>\n"
-        f"{admin_note}\n"
+        f"{benefit_note}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"للمتابعة، أرسل <b>توكن البوت</b> الخاص بك:\n\n"
         f"📌 <b>كيف أحصل على التوكن؟</b>\n"
@@ -154,9 +191,10 @@ async def receive_token(message: Message, state: FSMContext) -> None:
     data         = await state.get_data()
     source_name: str = data["source_name"]
     cost: int        = data["cost"]
+    benefit_type: str = data.get("benefit_type", "none")
     tg_id            = message.from_user.id
 
-    bot_username  = bot_info.get("username", "")
+    bot_username   = bot_info.get("username", "")
     bot_first_name = bot_info.get("first_name", source_name)
 
     try:
@@ -188,10 +226,28 @@ async def receive_token(message: Message, state: FSMContext) -> None:
         )
         return
 
+    # ── Consume coupon benefit after successful install ───────────────────────
+    if benefit_type == "free_install":
+        await consume_free_install(tg_id)
+    elif benefit_type == "discount":
+        await consume_discount(tg_id)
+
     await state.clear()
     await wait_msg.delete()
 
-    seeds_left = await get_user_seeds(tg_id)
+    seeds_left   = await get_user_seeds(tg_id)
+    db_user      = await get_user(tg_id)
+    free_left    = db_user.free_installs if db_user else 0
+    discount_pct = db_user.discount_pct if db_user else 0
+
+    # ── Build success card ────────────────────────────────────────────────────
+    benefit_line = ""
+    if benefit_type == "free_install":
+        benefit_line = f"\n📦 <b>تثبيتات مجانية متبقية:</b>  <code>{free_left}</code>"
+    elif benefit_type == "discount":
+        benefit_line = "\n🏷 <i>تم استهلاك الخصم</i>"
+    elif benefit_type == "admin":
+        benefit_line = "\n🛡 <i>تثبيت أدمن مجاني</i>"
 
     await message.answer(
         f"✅ <b>تم التثبيت بنجاح!</b>\n"
@@ -200,10 +256,14 @@ async def receive_token(message: Message, state: FSMContext) -> None:
         f"📛 <b>الاسم:</b>       {bot_first_name}\n"
         f"📦 <b>السورس:</b>      {source_name}\n"
         f"🌱 <b>خُصم:</b>        <code>{cost:,} بذرة</code>\n"
-        f"💰 <b>رصيدك الآن:</b>  <code>{seeds_left:,} بذرة</code>\n\n"
+        f"💰 <b>رصيدك الآن:</b>  <code>{seeds_left:,} بذرة</code>"
+        f"{benefit_line}\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🚀 البوت مسجّل! أدِره من ☰ Menu ← 👤 Profile ← 🤖 بوتاتي.",
+        f"🚀 البوت مسجَّل! أدِره من ☰ Menu ← 👤 Profile ← 🤖 بوتاتي.",
         reply_markup=_installed_kb(),
         parse_mode="HTML",
     )
-    logger.info("Install complete: tg_id=%s bot=@%s source=%s", tg_id, bot_username, source_name)
+    logger.info(
+        "Install complete: tg_id=%s bot=@%s source=%s benefit=%s cost=%s",
+        tg_id, bot_username, source_name, benefit_type, cost,
+    )

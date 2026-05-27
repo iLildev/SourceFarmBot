@@ -31,8 +31,11 @@ def admin_panel_kb() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📋 سجل الأدمن",      callback_data="adm_audit"),
             ],
             [
+                InlineKeyboardButton(text="🎫 الكوبونات",       callback_data="adm_coupons"),
                 InlineKeyboardButton(text="⚙️ النظام",          callback_data="adm_system"),
-                InlineKeyboardButton(text="🔄 تحديث",            callback_data="adm_refresh"),
+            ],
+            [
+                InlineKeyboardButton(text="🔄 تحديث",           callback_data="adm_refresh"),
             ],
         ]
     )

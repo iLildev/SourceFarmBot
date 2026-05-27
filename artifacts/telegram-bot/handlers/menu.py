@@ -6,6 +6,7 @@ from keyboards.menu_kb import (
     menu_kb, back_to_menu_kb, profile_kb,
     mybots_kb, bot_detail_kb, bot_delete_confirm_kb,
 )
+from aiogram.types import InlineKeyboardButton
 from services.user_service import get_user, get_referral_count, REFERRAL_BONUS_REFERRER, REFERRAL_BONUS_NEW_USER
 from services.bot_service import get_user_bots, get_bot_by_id, toggle_bot_running, delete_bot
 
@@ -240,9 +241,13 @@ async def show_wallet(callback: CallbackQuery) -> None:
         "📊 <b>سجل المعاملات:</b>\n"
         "   لا توجد معاملات بعد.\n\n"
         "━━━━━━━━━━━━━━━━━\n"
-        "🛒 <i>شراء البذور قريباً</i>"
+        "🛒 <b>شراء البذور:</b>  /buy"
     )
-    await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
+    buy_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🌱 شراء البذور", callback_data="buy_store")],
+        [InlineKeyboardButton(text="🔙 رجوع للقائمة", callback_data="menu")],
+    ])
+    await callback.message.edit_text(text, reply_markup=buy_kb, parse_mode="HTML")
     await callback.answer()
 
 
@@ -278,21 +283,7 @@ async def show_referral(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-# ──────────────────────────── Codes ──────────────────────────────────
-
-@router.callback_query(F.data == "menu_codes")
-async def show_codes(callback: CallbackQuery) -> None:
-    text = (
-        "🎫 <b>أكواد التفعيل</b>\n"
-        "━━━━━━━━━━━━━━━━━\n\n"
-        "لديك كود خصم أو تفعيل؟\n"
-        "أدخله هنا للحصول على مكافأتك.\n\n"
-        "📥 <b>الأكواد المستخدمة:</b>  لا يوجد\n\n"
-        "━━━━━━━━━━━━━━━━━\n"
-        "<i>إدخال الكود قريباً</i>"
-    )
-    await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
-    await callback.answer()
+# ──────────────────────────── Codes → delegated to codes.py ─────────
 
 
 # ──────────────────────────── Help ───────────────────────────────────

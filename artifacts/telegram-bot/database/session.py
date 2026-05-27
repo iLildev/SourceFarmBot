@@ -23,8 +23,10 @@ async def init_db() -> None:
 
         # Idempotent column migrations for existing tables
         migrations = [
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by BIGINT DEFAULT NULL",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by    BIGINT    DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen       TIMESTAMP DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS free_installs   INTEGER   DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS discount_pct    INTEGER   DEFAULT 0",
         ]
         for sql in migrations:
             await conn.execute(text(sql))

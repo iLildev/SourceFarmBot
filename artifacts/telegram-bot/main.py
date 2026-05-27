@@ -14,6 +14,7 @@ from handlers import (
     start, source_tree, mode, menu, commands,
     admin, report, donate, install, buy, fallback,
 )
+from handlers import codes, admin_codes
 from middlewares.rate_limit import RateLimitMiddleware
 from middlewares.activity import ActivityMiddleware
 
@@ -34,23 +35,33 @@ BOT_COMMANDS = [
     BotCommand(command="donate", description="💚 دعم المنصة"),
 ]
 
+ADMIN_COMMANDS = [
+    BotCommand(command="admin",       description="🛡 لوحة التحكم"),
+    BotCommand(command="giveme",      description="🌱 منح بذور لنفسك"),
+    BotCommand(command="addseeds",    description="➕ إضافة بذور لمستخدم"),
+    BotCommand(command="newcode",     description="🎫 إنشاء كوبون"),
+    BotCommand(command="listcodes",   description="📋 قائمة الكوبونات"),
+    BotCommand(command="togglecode",  description="⏯ تفعيل/تعطيل كوبون"),
+    BotCommand(command="deletecode",  description="🗑 حذف كوبون"),
+]
+
 
 def _build_dispatcher() -> Dispatcher:
     dp = Dispatcher()
 
-    # ── Middlewares ──────────────────────────────────────────────────────────
-    # ActivityMiddleware runs first (outer) — tracks last_seen on every event
+    # ── Middlewares (outer → inner) ───────────────────────────────────────────
     dp.update.outer_middleware(ActivityMiddleware())
-    # RateLimitMiddleware runs second — may block the event from reaching handlers
     dp.update.middleware(RateLimitMiddleware())
 
-    # ── Routers (order matters — more specific before more general) ──────────
+    # ── Routers (specific → general) ─────────────────────────────────────────
     dp.include_router(admin.router)
+    dp.include_router(admin_codes.router)
     dp.include_router(start.router)
     dp.include_router(commands.router)
     dp.include_router(report.router)
     dp.include_router(donate.router)
     dp.include_router(buy.router)
+    dp.include_router(codes.router)
     dp.include_router(install.router)
     dp.include_router(source_tree.router)
     dp.include_router(mode.router)
@@ -69,7 +80,6 @@ async def _run_webhook(bot: Bot, dp: Dispatcher) -> None:
     from aiohttp import web
     from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
-    # Use a secret path segment so only Telegram can trigger it
     path = f"/webhook/{BOT_TOKEN}"
     url  = f"{WEBHOOK_HOST}{path}"
 
@@ -90,7 +100,6 @@ async def _run_webhook(bot: Bot, dp: Dispatcher) -> None:
     await site.start()
     logger.info("Webhook server listening on 0.0.0.0:%s", WEBHOOK_PORT)
 
-    # Wait for shutdown signal
     shutdown = asyncio.Event()
     loop     = asyncio.get_running_loop()
 
@@ -109,7 +118,6 @@ async def _run_webhook(bot: Bot, dp: Dispatcher) -> None:
 
 async def main() -> None:
     logger.info("Starting SourceFarm bot ...")
-
     await init_db()
 
     bot = Bot(
@@ -130,10 +138,8 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    # ── Graceful shutdown for polling mode ───────────────────────────────────
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
     main_task = loop.create_task(main())
 
     def _terminate(*_):

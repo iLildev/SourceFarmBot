@@ -19,9 +19,12 @@ class User(Base):
     referred_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True, default=None)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+    free_installs: Mapped[int] = mapped_column(Integer, default=0)
+    discount_pct: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     bots: Mapped[list["Bot"]] = relationship("Bot", back_populates="owner")
+    coupon_uses: Mapped[list["CouponUse"]] = relationship("CouponUse", back_populates="user")
 
     def __repr__(self) -> str:
         return f"<User id={self.id} tg={self.telegram_id}>"
@@ -71,3 +74,49 @@ class AuditLog(Base):
 
     def __repr__(self) -> str:
         return f"<AuditLog id={self.id} admin={self.admin_id} action={self.action}>"
+
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
+
+    # Type: "seeds" | "free_install" | "discount"
+    type: Mapped[str] = mapped_column(String(20), nullable=False, default="seeds")
+
+    # Meaning per type:
+    #   seeds       → N seeds to add
+    #   free_install→ N free installs to grant
+    #   discount    → N % discount on next install
+    value: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    uses_count: Mapped[int] = mapped_column(Integer, default=0)
+    per_user_limit: Mapped[int] = mapped_column(Integer, default=1)
+    min_seeds: Mapped[int] = mapped_column(Integer, default=0)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    uses: Mapped[list["CouponUse"]] = relationship("CouponUse", back_populates="coupon")
+
+    def __repr__(self) -> str:
+        return f"<Coupon code={self.code} type={self.type} value={self.value}>"
+
+
+class CouponUse(Base):
+    __tablename__ = "coupon_uses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    coupon_id: Mapped[int] = mapped_column(Integer, ForeignKey("coupons.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    used_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    coupon: Mapped["Coupon"] = relationship("Coupon", back_populates="uses")
+    user: Mapped["User"] = relationship("User", back_populates="coupon_uses")
+
+    def __repr__(self) -> str:
+        return f"<CouponUse coupon={self.coupon_id} user={self.user_id}>"
