@@ -34,8 +34,9 @@ def _cancel_kb() -> InlineKeyboardMarkup:
 def _installed_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🌲 تصفح المزيد", callback_data="source_tree")],
-            [InlineKeyboardButton(text="🔙 الرئيسية",    callback_data="back_main")],
+            [InlineKeyboardButton(text="🌲 تصفح المزيد",    callback_data="source_tree")],
+            [InlineKeyboardButton(text="🤖 بوتاتي",         callback_data="menu_mybots")],
+            [InlineKeyboardButton(text="🔙 الرئيسية",       callback_data="back_main")],
         ]
     )
 
@@ -43,16 +44,16 @@ def _installed_kb() -> InlineKeyboardMarkup:
 @router.callback_query(F.data.startswith("install_") & ~F.data.in_({"install_cancel"}))
 async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
     source_id = int(callback.data.split("_")[-1])
-    source = next((s for s in SOURCES if s["id"] == source_id), None)
+    source    = next((s for s in SOURCES if s["id"] == source_id), None)
 
     if not source:
         await callback.answer("المصدر غير موجود", show_alert=True)
         return
 
-    tg_id = callback.from_user.id
+    tg_id    = callback.from_user.id
     is_admin = tg_id in ADMIN_IDS
-    cost = 0 if is_admin else source["points"]
-    seeds = await get_user_seeds(tg_id)
+    cost     = 0 if is_admin else source["points"]
+    seeds    = await get_user_seeds(tg_id)
 
     if not is_admin and seeds < source["points"]:
         shortage = source["points"] - seeds
@@ -64,6 +65,11 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
             show_alert=True,
         )
         return
+
+    # If already in install state → silently override (clear old, start fresh)
+    current = await state.get_state()
+    if current == InstallStates.waiting_for_token.state:
+        await state.clear()
 
     await state.set_state(InstallStates.waiting_for_token)
     await state.update_data(source_id=source_id, source_name=source["name"], cost=cost)
@@ -145,17 +151,16 @@ async def receive_token(message: Message, state: FSMContext) -> None:
         )
         return
 
-    data = await state.get_data()
-    source_id: int  = data["source_id"]
+    data         = await state.get_data()
     source_name: str = data["source_name"]
     cost: int        = data["cost"]
-    tg_id = message.from_user.id
+    tg_id            = message.from_user.id
 
-    bot_username = bot_info.get("username", "")
+    bot_username  = bot_info.get("username", "")
     bot_first_name = bot_info.get("first_name", source_name)
 
     try:
-        saved_bot = await install_bot(
+        await install_bot(
             telegram_id=tg_id,
             token=token,
             bot_name=bot_first_name,
@@ -166,23 +171,12 @@ async def receive_token(message: Message, state: FSMContext) -> None:
         await wait_msg.delete()
         err = str(e)
         if err == "insufficient_seeds":
-            await message.answer(
-                "🌱 <b>رصيد غير كافٍ.</b>\n\nالبذور نقصت بعد التحقق. اشحن رصيدك وحاول مجدداً.",
-                reply_markup=_cancel_kb(),
-                parse_mode="HTML",
-            )
+            msg = "🌱 <b>رصيد غير كافٍ.</b>\n\nالبذور نقصت. اشحن رصيدك وحاول مجدداً."
         elif err == "duplicate_token":
-            await message.answer(
-                "⚠️ <b>هذا البوت مسجّل مسبقاً.</b>\n\nلا يمكن تثبيت نفس البوت مرتين.",
-                reply_markup=_cancel_kb(),
-                parse_mode="HTML",
-            )
+            msg = "⚠️ <b>هذا البوت مسجّل مسبقاً.</b>\n\nلا يمكن تثبيت نفس البوت مرتين."
         else:
-            await message.answer(
-                "❌ حدث خطأ أثناء التثبيت. حاول مجدداً.",
-                reply_markup=_cancel_kb(),
-                parse_mode="HTML",
-            )
+            msg = "❌ حدث خطأ أثناء التثبيت. حاول مجدداً."
+        await message.answer(msg, reply_markup=_cancel_kb(), parse_mode="HTML")
         return
     except Exception as e:
         logger.error("install_bot error: %s", e)
@@ -208,7 +202,7 @@ async def receive_token(message: Message, state: FSMContext) -> None:
         f"🌱 <b>خُصم:</b>        <code>{cost:,} بذرة</code>\n"
         f"💰 <b>رصيدك الآن:</b>  <code>{seeds_left:,} بذرة</code>\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🚀 بوتك جاهز! يمكنك الآن إدارته من ⚡ Mode.",
+        f"🚀 البوت مسجّل! أدِره من ☰ Menu ← 👤 Profile ← 🤖 بوتاتي.",
         reply_markup=_installed_kb(),
         parse_mode="HTML",
     )

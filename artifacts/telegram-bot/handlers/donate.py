@@ -15,9 +15,8 @@ from services.user_service import add_seeds
 logger = logging.getLogger(__name__)
 router = Router(name="donate")
 
-# ── Constants ────────────────────────────────────────────────────────────────
-STARS_PER_DOLLAR = 50          # display: 50 ⭐ ≈ $1
-SEEDS_PER_STAR   = 2           # bonus seeds per donated star
+STARS_PER_DOLLAR = 50
+SEEDS_PER_STAR   = 2
 
 PRESETS: list[tuple[int, str]] = [
     (25,  "$0.50"),
@@ -34,7 +33,7 @@ class DonateStates(StatesGroup):
     confirming     = State()
 
 
-# ── Keyboards ────────────────────────────────────────────────────────────────
+# ── Keyboards ─────────────────────────────────────────────────────────────────
 
 def _amount_kb() -> InlineKeyboardMarkup:
     rows = []
@@ -76,7 +75,13 @@ def _cancel_kb() -> InlineKeyboardMarkup:
     ]])
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+def _back_to_main_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🔙 الرئيسية", callback_data="back_main"),
+    ]])
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _usd(stars: int) -> str:
     return f"${stars / STARS_PER_DOLLAR:.2f}"
@@ -100,7 +105,7 @@ def _confirm_text(stars: int) -> str:
     return "🧾 <b>تأكيد التبرع</b>\n\n" + "\n".join(lines)
 
 
-# ── /donate command ──────────────────────────────────────────────────────────
+# ── /donate command ────────────────────────────────────────────────────────────
 
 @router.message(Command("donate"))
 async def cmd_donate(message: Message, state: FSMContext) -> None:
@@ -118,7 +123,7 @@ async def cmd_donate(message: Message, state: FSMContext) -> None:
     await message.answer("\n".join(lines), reply_markup=_amount_kb(), parse_mode="HTML")
 
 
-# ── Preset amount picked ──────────────────────────────────────────────────────
+# ── Preset amount picked ───────────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("don_amt_"))
 async def pick_preset(callback: CallbackQuery, state: FSMContext) -> None:
@@ -131,7 +136,7 @@ async def pick_preset(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
-# ── Custom amount ─────────────────────────────────────────────────────────────
+# ── Custom amount ──────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "don_custom")
 async def ask_custom(callback: CallbackQuery, state: FSMContext) -> None:
@@ -151,21 +156,18 @@ async def receive_custom(message: Message, state: FSMContext) -> None:
     if not text.isdigit() or int(text) < 1:
         await message.answer(
             "⚠️ من فضلك أرسل <b>رقماً صحيحاً</b> أكبر من صفر.\n"
-            f"<i>مثال: 75</i>",
+            "<i>مثال: 75</i>",
             reply_markup=_cancel_kb(),
             parse_mode="HTML",
         )
         return
-
     stars = int(text)
     await state.update_data(stars=stars)
     await state.set_state(DonateStates.confirming)
-    await message.answer(
-        _confirm_text(stars), reply_markup=_confirm_kb(stars), parse_mode="HTML"
-    )
+    await message.answer(_confirm_text(stars), reply_markup=_confirm_kb(stars), parse_mode="HTML")
 
 
-# ── Back to amount selection ──────────────────────────────────────────────────
+# ── Back to amount selection ───────────────────────────────────────────────────
 
 @router.callback_query(F.data == "don_back")
 async def back_to_amount(callback: CallbackQuery, state: FSMContext) -> None:
@@ -184,14 +186,17 @@ async def back_to_amount(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
-# ── Pay via bot invoice ───────────────────────────────────────────────────────
+# ── Pay via bot invoice ────────────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("don_pay_"))
 async def send_invoice(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
     stars = int(callback.data.split("_")[-1])
     await state.clear()
-    await callback.message.edit_reply_markup(reply_markup=None)
-
+    await callback.message.edit_text(
+        f"⭐ <b>جارٍ إرسال فاتورة {stars} نجمة...</b>",
+        reply_markup=None,
+        parse_mode="HTML",
+    )
     await bot.send_invoice(
         chat_id=callback.message.chat.id,
         title="💚 دعم SourceFarm",
@@ -204,14 +209,17 @@ async def send_invoice(callback: CallbackQuery, state: FSMContext, bot: Bot) -> 
     await callback.answer()
 
 
-# ── Gift link (invoice link) ──────────────────────────────────────────────────
+# ── Gift link ──────────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("don_link_"))
 async def send_gift_link(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
     stars = int(callback.data.split("_")[-1])
     await state.clear()
-    await callback.message.edit_reply_markup(reply_markup=None)
-
+    await callback.message.edit_text(
+        "🎁 <b>جارٍ إنشاء رابط الهدية...</b>",
+        reply_markup=None,
+        parse_mode="HTML",
+    )
     try:
         link = await bot.create_invoice_link(
             title="💚 هدية إلى مطوّر SourceFarm",
@@ -222,35 +230,39 @@ async def send_gift_link(callback: CallbackQuery, state: FSMContext, bot: Bot) -
             provider_token="",
         )
         personal_note = (
-            f"\n\n<i>للتبرع على الحساب الشخصي مباشرةً،\n"
-            f"أرسل النجوم لـ @{OWNER_USERNAME} من داخل تيليجرام.</i>"
+            f"\n\n<i>أو أرسل النجوم مباشرةً لـ @{OWNER_USERNAME} من داخل تيليجرام.</i>"
         ) if OWNER_USERNAME else ""
 
         await callback.message.answer(
             f"🎁 <b>رابط الهدية المباشر</b>\n\n"
-            f"انقر الرابط أدناه لإرسال <b>{stars} ⭐</b> هدية:\n\n"
+            f"انقر الرابط أدناه لإرسال <b>{stars} ⭐</b>:\n\n"
             f"<code>{link}</code>\n\n"
             f"يمكن مشاركة هذا الرابط مع أي شخص.{personal_note}",
+            reply_markup=_back_to_main_kb(),
             parse_mode="HTML",
         )
     except Exception as exc:
         logger.warning("create_invoice_link failed: %s", exc)
         await callback.message.answer(
-            "⚠️ تعذّر إنشاء رابط الهدية. جرّب «ادفع الآن عبر البوت» بدلاً من ذلك."
+            "⚠️ تعذّر إنشاء رابط الهدية. جرّب «ادفع الآن عبر البوت» بدلاً من ذلك.",
+            reply_markup=_back_to_main_kb(),
         )
     await callback.answer()
 
 
-# ── Cancel ───────────────────────────────────────────────────────────────────
+# ── Cancel ─────────────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "don_cancel")
 async def cancel_donate(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text("❌ تم إلغاء عملية التبرع.")
+    await callback.message.edit_text(
+        "❌ تم إلغاء عملية التبرع.",
+        reply_markup=_back_to_main_kb(),
+    )
     await callback.answer()
 
 
-# ── Telegram payment handlers ─────────────────────────────────────────────────
+# ── Telegram payment handlers ──────────────────────────────────────────────────
 
 @router.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery, bot: Bot) -> None:
@@ -260,8 +272,8 @@ async def pre_checkout(query: PreCheckoutQuery, bot: Bot) -> None:
 @router.message(F.successful_payment)
 async def payment_done(message: Message, bot: Bot) -> None:
     payment = message.successful_payment
-    stars = payment.total_amount
-    bonus = _seeds_bonus(stars)
+    stars   = payment.total_amount
+    bonus   = _seeds_bonus(stars)
     payload = payment.invoice_payload
 
     try:
@@ -279,5 +291,6 @@ async def payment_done(message: Message, bot: Bot) -> None:
         f"⭐ <b>استلمنا:</b>   {stars} نجمة\n"
         f"🌱 <b>مكافأتك:</b>  +{bonus} بذرة أُضيفت لرصيدك\n\n"
         f"مساهمتك تصنع فرقاً حقيقياً ❤️",
+        reply_markup=_back_to_main_kb(),
         parse_mode="HTML",
     )

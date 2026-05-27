@@ -1,6 +1,6 @@
 import logging
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.mode_kb import (
     mode_select_kb,
@@ -9,6 +9,7 @@ from keyboards.mode_kb import (
     back_to_mode_kb,
     back_to_realdev_kb,
 )
+from services.bot_service import get_user_bots
 
 logger = logging.getLogger(__name__)
 router = Router(name="mode")
@@ -59,15 +60,23 @@ async def show_realdev(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "studio_bots")
 async def studio_bots(callback: CallbackQuery) -> None:
-    text = (
-        "🤖 <b>Active Bots</b>\n\n"
-        "┌─────────────────────┐\n"
-        "│ 🟢 MyShopBot      ON │\n"
-        "│ 🔴 SupportBot    OFF │\n"
-        "│ 🟡 NewsBot   PAUSED  │\n"
-        "└─────────────────────┘\n\n"
-        "<i>اضغط على البوت لإدارته (قريباً)</i>"
-    )
+    bots = await get_user_bots(callback.from_user.id)
+
+    if not bots:
+        text = (
+            "🤖 <b>Active Bots</b>\n\n"
+            "لا يوجد لديك بوتات مثبّتة بعد.\n\n"
+            "📦 تصفّح <b>🌲 Source Tree</b> واختر سورساً لتثبيته."
+        )
+    else:
+        lines = ["🤖 <b>Active Bots</b>\n"]
+        for bot in bots:
+            icon  = "🟢" if bot.is_running else "🔴"
+            mode  = "Studio" if bot.mode == "studio" else "RealDev"
+            lines.append(f"{icon} <b>{bot.name}</b>  <i>({mode})</i>")
+        lines.append("\n<i>إدارة الإضافات وتشغيل البوتات فعلياً — قريباً</i>")
+        text = "\n".join(lines)
+
     await callback.message.edit_text(text, reply_markup=back_to_mode_kb(), parse_mode="HTML")
     await callback.answer()
 
@@ -88,14 +97,16 @@ async def studio_settings(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "studio_status")
 async def studio_status(callback: CallbackQuery) -> None:
+    bots    = await get_user_bots(callback.from_user.id)
+    running = sum(1 for b in bots if b.is_running)
+    total   = len(bots)
+
     text = (
         "🟢 <b>Bot Status</b>\n\n"
-        "الحالة العامة: <b>يعمل بشكل طبيعي</b>\n\n"
-        "📊 إحصائيات اليوم:\n"
-        "  • الرسائل المُستقبَلة: <code>1,247</code>\n"
-        "  • الردود التلقائية:    <code>986</code>\n"
-        "  • المستخدمون الجدد:   <code>43</code>\n"
-        "  • وقت التشغيل:        <code>99.8%</code>"
+        f"البوتات المسجّلة: <b>{total}</b>\n"
+        f"شغّالة الآن:      <b>{running}</b>\n"
+        f"متوقفة:           <b>{total - running}</b>\n\n"
+        "<i>مراقبة البوتات في الوقت الفعلي — قريباً</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_mode_kb(), parse_mode="HTML")
     await callback.answer()
@@ -103,14 +114,17 @@ async def studio_status(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "dev_runtime")
 async def dev_runtime(callback: CallbackQuery) -> None:
+    import sys
+    import platform
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     text = (
         "🖥 <b>Runtime</b>\n\n"
-        "<code>Python 3.12.3</code>\n"
-        "<code>aiogram 3.13.1</code>\n"
-        "<code>Memory:  128 MB / 512 MB</code>\n"
-        "<code>CPU:     2.3%</code>\n"
-        "<code>Uptime:  3d 14h 22m</code>\n"
-        "<code>Threads: 8</code>"
+        f"<code>Python       {py_ver}</code>\n"
+        "<code>aiogram      3.13.1</code>\n"
+        "<code>SQLAlchemy   2.0.36</code>\n"
+        "<code>asyncpg      0.30.0</code>\n\n"
+        f"<code>Platform:    {platform.system()} {platform.machine()}</code>\n"
+        "<i>مراقبة الموارد (CPU/RAM) — قريباً</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_realdev_kb(), parse_mode="HTML")
     await callback.answer()
@@ -118,13 +132,12 @@ async def dev_runtime(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "dev_plugins")
 async def dev_plugins(callback: CallbackQuery) -> None:
+    bots  = await get_user_bots(callback.from_user.id)
+    total = len(bots)
     text = (
         "🔌 <b>Plugins</b>\n\n"
-        "✅ <code>inline-buttons   v1.2</code>\n"
-        "✅ <code>auto-reply       v2.0</code>\n"
-        "⚠️ <code>analytics        v0.9</code>  <i>(تحديث متاح)</i>\n"
-        "❌ <code>payments         ---</code>   <i>(غير مثبّت)</i>\n\n"
-        "<i>إدارة الإضافات قريباً</i>"
+        f"البوتات المسجّلة: <b>{total}</b>\n\n"
+        "<i>نظام الإضافات والبلاجنز قيد التطوير — قريباً</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_realdev_kb(), parse_mode="HTML")
     await callback.answer()
@@ -133,12 +146,9 @@ async def dev_plugins(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "dev_logs")
 async def dev_logs(callback: CallbackQuery) -> None:
     text = (
-        "📋 <b>Logs</b>  <i>(آخر 5 سجلات)</i>\n\n"
-        "<code>[14:32:01] INFO  Bot started</code>\n"
-        "<code>[14:33:45] INFO  New user: 99123</code>\n"
-        "<code>[14:35:12] DEBUG Handler: /start</code>\n"
-        "<code>[14:40:08] WARN  Rate limit hit</code>\n"
-        "<code>[14:41:55] INFO  Session closed</code>"
+        "📋 <b>Logs</b>\n\n"
+        "عرض سجلات بوتاتك في الوقت الفعلي\n\n"
+        "<i>هذه الميزة قيد التطوير — قريباً</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_realdev_kb(), parse_mode="HTML")
     await callback.answer()
@@ -148,12 +158,8 @@ async def dev_logs(callback: CallbackQuery) -> None:
 async def dev_events(callback: CallbackQuery) -> None:
     text = (
         "⚡ <b>Events</b>\n\n"
-        "الأحداث المسجّلة:\n\n"
-        "• <code>on_message</code>       → <i>3 handlers</i>\n"
-        "• <code>on_callback_query</code> → <i>12 handlers</i>\n"
-        "• <code>on_inline_query</code>  → <i>1 handler</i>\n"
-        "• <code>on_startup</code>       → <i>2 hooks</i>\n"
-        "• <code>on_shutdown</code>      → <i>1 hook</i>"
+        "مراقبة الأحداث والـ Webhooks لبوتاتك\n\n"
+        "<i>هذه الميزة قيد التطوير — قريباً</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_realdev_kb(), parse_mode="HTML")
     await callback.answer()
@@ -165,10 +171,8 @@ async def dev_variables(callback: CallbackQuery) -> None:
         "📦 <b>Variables</b>\n\n"
         "<code>BOT_TOKEN      = ****hidden****</code>\n"
         "<code>DATABASE_URL   = ****hidden****</code>\n"
-        "<code>LOG_LEVEL      = INFO</code>\n"
-        "<code>DEBUG_MODE     = False</code>\n"
-        "<code>MAX_CONNECTIONS = 10</code>\n\n"
-        "<i>التعديل على المتغيرات قريباً</i>"
+        "<code>LOG_LEVEL      = INFO</code>\n\n"
+        "<i>إدارة متغيرات بوتاتك — قريباً</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_realdev_kb(), parse_mode="HTML")
     await callback.answer()

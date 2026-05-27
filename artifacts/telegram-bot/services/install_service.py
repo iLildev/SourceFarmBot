@@ -10,7 +10,9 @@ from services.user_service import get_user
 
 logger = logging.getLogger(__name__)
 
-TOKEN_RE = re.compile(r"^\d{8,12}:[A-Za-z0-9_-]{35}$")
+# Telegram token: {bot_id}:{secret}
+# bot_id: 8-12 digits, secret: 35-46 chars of [A-Za-z0-9_-]
+TOKEN_RE = re.compile(r"^\d{8,12}:[A-Za-z0-9_-]{25,50}$")
 
 
 class InstallError(Exception):
@@ -59,7 +61,7 @@ async def install_bot(
     Raises InstallError on insufficient seeds or duplicate token.
     """
     token = token.strip()
-    hint = token[:10]
+    hint  = token[:10]
 
     async with async_session_maker() as session:
         user_result = await session.execute(
@@ -69,7 +71,7 @@ async def install_bot(
         if not user:
             raise InstallError("user_not_found")
 
-        if user.points < source_cost:
+        if source_cost > 0 and user.points < source_cost:
             raise InstallError("insufficient_seeds")
 
         dup_result = await session.execute(
@@ -78,7 +80,8 @@ async def install_bot(
         if dup_result.scalar_one_or_none():
             raise InstallError("duplicate_token")
 
-        user.points -= source_cost
+        if source_cost > 0:
+            user.points -= source_cost
 
         bot = Bot(
             owner_id=user.id,
@@ -97,17 +100,3 @@ async def install_bot(
             telegram_id, bot_name, source_name, source_cost, user.points,
         )
         return bot
-
-
-async def get_user_bots(telegram_id: int) -> list[Bot]:
-    async with async_session_maker() as session:
-        user_result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = user_result.scalar_one_or_none()
-        if not user:
-            return []
-        result = await session.execute(
-            select(Bot).where(Bot.owner_id == user.id).order_by(Bot.created_at.desc())
-        )
-        return result.scalars().all()
