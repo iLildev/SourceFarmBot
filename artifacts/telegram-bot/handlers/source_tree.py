@@ -27,10 +27,13 @@ def _render_source(source: dict, index: int, total: int) -> str:
 
 
 def _render_detail(source: dict) -> str:
-    features = source.get("features", [])
+    features      = source.get("features", [])
+    what_you_get  = source.get("what_you_get", [])
+    requirements  = source.get("requirements", [])
     features_text = "\n".join(f"  {f}" for f in features)
-    tags_line = "  ".join(f"#{t}" for t in source.get("tags", []))
-    return (
+    tags_line     = "  ".join(f"#{t}" for t in source.get("tags", []))
+
+    sections = [
         f"🔍 <b>{source['name']}</b>  <code>v{source['version']}</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📌 <b>الإصدار:</b>    {source['version']}\n"
@@ -40,10 +43,23 @@ def _render_detail(source: dict) -> str:
         f"📥 <b>التثبيتات:</b> <code>{source['installs']:,}</code>\n"
         f"⭐ <b>التقييم:</b>   <code>{source['rating']}/5.0</code>\n\n"
         f"📝 <b>الوصف:</b>\n{source['description']}\n\n"
-        f"✨ <b>الميزات الرئيسية:</b>\n{features_text}\n\n"
-        f"<i>{tags_line}</i>\n\n"
-        f"✅ متاح للتثبيت الآن."
-    )
+        f"✨ <b>الميزات:</b>\n{features_text}"
+    ]
+
+    if what_you_get:
+        sections.append(
+            "\n\n📦 <b>ماذا تحصل عليه:</b>\n"
+            + "\n".join(f"  {line}" for line in what_you_get)
+        )
+
+    if requirements:
+        sections.append(
+            "\n\n⚙️ <b>المتطلبات:</b>\n"
+            + "\n".join(f"  • {req}" for req in requirements)
+        )
+
+    sections.append(f"\n\n<i>{tags_line}</i>\n\n✅ متاح للتثبيت الآن.")
+    return "".join(sections)
 
 
 def _source_index(source_id: int) -> int:
