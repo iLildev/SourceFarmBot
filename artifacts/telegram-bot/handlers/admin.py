@@ -1,5 +1,5 @@
 import logging
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
@@ -66,7 +66,7 @@ async def cmd_admin(message: Message) -> None:
     await message.answer(text, reply_markup=admin_panel_kb(), parse_mode="HTML")
 
 
-@router.callback_query(lambda c: c.data in ("adm_stats", "adm_refresh"))
+@router.callback_query(F.data.in_({"adm_stats", "adm_refresh"}))
 async def adm_stats(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("🚫 غير مصرح", show_alert=True)
@@ -78,7 +78,7 @@ async def adm_stats(callback: CallbackQuery) -> None:
     await callback.answer("✅ تم التحديث")
 
 
-@router.callback_query(lambda c: c.data == "adm_users")
+@router.callback_query(F.data == "adm_users")
 async def adm_users(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("🚫 غير مصرح", show_alert=True)

@@ -1,38 +1,52 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def source_list_kb() -> InlineKeyboardMarkup:
+def source_browse_kb(source_id: int, current: int, total: int) -> InlineKeyboardMarkup:
+    """Unified keyboard: install + details + prev/counter/next + back."""
+    nav_row = []
+    if current > 0:
+        nav_row.append(
+            InlineKeyboardButton(text="◀️", callback_data=f"src_page_{current - 1}")
+        )
+    nav_row.append(
+        InlineKeyboardButton(text=f"🌿 {current + 1}/{total}", callback_data="noop")
+    )
+    if current < total - 1:
+        nav_row.append(
+            InlineKeyboardButton(text="▶️", callback_data=f"src_page_{current + 1}")
+        )
+
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="◀️ السابق", callback_data="src_prev"),
-                InlineKeyboardButton(text="التالي ▶️", callback_data="src_next"),
+                InlineKeyboardButton(text="📦 تثبيت",    callback_data=f"install_{source_id}"),
+                InlineKeyboardButton(text="🔍 التفاصيل", callback_data=f"details_{source_id}"),
             ],
+            nav_row,
             [InlineKeyboardButton(text="🔙 الرئيسية", callback_data="back_main")],
         ]
     )
 
 
-def source_detail_kb(source_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="📦 تثبيت", callback_data=f"install_{source_id}"),
-                InlineKeyboardButton(text="🔍 التفاصيل", callback_data=f"details_{source_id}"),
-            ],
-            [InlineKeyboardButton(text="🔙 القائمة", callback_data="source_tree")],
-        ]
-    )
-
-
-def source_nav_kb(current: int, total: int) -> InlineKeyboardMarkup:
-    buttons = []
+def source_detail_full_kb(source_id: int, current: int, total: int) -> InlineKeyboardMarkup:
+    """Detail view keyboard: install + prev/counter/next + back to browse."""
     nav_row = []
     if current > 0:
-        nav_row.append(InlineKeyboardButton(text="◀️ السابق", callback_data=f"src_page_{current - 1}"))
+        nav_row.append(
+            InlineKeyboardButton(text="◀️", callback_data=f"src_page_{current - 1}")
+        )
+    nav_row.append(
+        InlineKeyboardButton(text=f"🌿 {current + 1}/{total}", callback_data="noop")
+    )
     if current < total - 1:
-        nav_row.append(InlineKeyboardButton(text="التالي ▶️", callback_data=f"src_page_{current + 1}"))
-    if nav_row:
-        buttons.append(nav_row)
-    buttons.append([InlineKeyboardButton(text="🔙 الرئيسية", callback_data="back_main")])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+        nav_row.append(
+            InlineKeyboardButton(text="▶️", callback_data=f"src_page_{current + 1}")
+        )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📦 تثبيت", callback_data=f"install_{source_id}")],
+            nav_row,
+            [InlineKeyboardButton(text="🔙 الرئيسية", callback_data="back_main")],
+        ]
+    )

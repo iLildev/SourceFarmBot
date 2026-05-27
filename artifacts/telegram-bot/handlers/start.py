@@ -4,7 +4,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from keyboards.main_kb import main_menu_kb
-from services.user_service import get_or_create_user, WELCOME_SEEDS, REFERRAL_BONUS_NEW_USER
+from services.user_service import get_or_create_user, add_seeds, WELCOME_SEEDS, REFERRAL_BONUS_NEW_USER
 
 logger = logging.getLogger(__name__)
 router = Router(name="start")
@@ -39,16 +39,15 @@ WELCOME_REFERRED_TEXT = (
     "╚══════════════════════════╝\n\n"
     "أهلاً وسهلاً، <b>{name}</b>! 🎉\n\n"
     "تم تسجيل حسابك بنجاح عبر رابط إحالة.\n"
-    "🌱 هدية الترحيب:  <b>{welcome} بذرة</b>\n"
-    "🎁 مكافأة الإحالة: <b>+{bonus} بذرة</b>\n"
+    "🌱 هدية الترحيب:   <b>{welcome} بذرة</b>\n"
+    "🎁 مكافأة الإحالة:  <b>+{bonus} بذرة</b>\n"
     "━━━━━━━━━━━━━━━━━\n"
-    "💰 إجمالي رصيدك:  <b>{total} بذرة</b>\n\n"
+    "💰 إجمالي رصيدك:   <b>{total} بذرة</b>\n\n"
     "اختر من القائمة أدناه للبدء 👇"
 )
 
 
 def _parse_referrer(text: str | None) -> int | None:
-    """Extract referrer telegram_id from /start ref<id> deep link."""
     if not text:
         return None
     parts = text.strip().split()
@@ -88,7 +87,7 @@ async def cmd_start(message: Message) -> None:
         logger.info("New referred user: tg_id=%s ref_by=%s", tg_user.id, user.referred_by)
     elif created:
         text = WELCOME_NEW_TEXT.format(name=name, seeds=user.points)
-        logger.info("New user welcomed: tg_id=%s", tg_user.id)
+        logger.info("New user: tg_id=%s seeds=%s", tg_user.id, user.points)
     else:
         text = WELCOME_TEXT.format(name=name)
         logger.info("Returning user: tg_id=%s seeds=%s", tg_user.id, user.points)

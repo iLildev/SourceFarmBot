@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from keyboards.main_kb import main_menu_kb
-from keyboards.source_tree_kb import source_detail_kb
+from keyboards.source_tree_kb import source_browse_kb
 from data.fake_sources import FAKE_SOURCES
 
 logger = logging.getLogger(__name__)
@@ -54,9 +54,10 @@ async def cmd_search(message: Message) -> None:
     lines.append("\nاضغط 🌲 Source Tree للتصفح الكامل.")
 
     first = results[0]
+    first_idx = next(i for i, s in enumerate(FAKE_SOURCES) if s["id"] == first["id"])
     await message.answer(
         "\n".join(lines),
-        reply_markup=source_detail_kb(first["id"]),
+        reply_markup=source_browse_kb(first["id"], first_idx, len(FAKE_SOURCES)),
         parse_mode="HTML",
     )
 

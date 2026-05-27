@@ -9,7 +9,7 @@ from aiogram.types import BotCommand
 
 from config import BOT_TOKEN, LOG_LEVEL
 from database.session import init_db
-from handlers import start, source_tree, mode, menu, commands, admin
+from handlers import start, source_tree, mode, menu, commands, admin, fallback
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
@@ -49,6 +49,7 @@ async def main() -> None:
     dp.include_router(source_tree.router)
     dp.include_router(mode.router)
     dp.include_router(menu.router)
+    dp.include_router(fallback.router)
 
     logger.info("All routers registered. Launching polling ...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())

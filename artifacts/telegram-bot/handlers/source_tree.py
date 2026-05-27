@@ -3,7 +3,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 
 from data.fake_sources import FAKE_SOURCES
-from keyboards.source_tree_kb import source_detail_kb, source_nav_kb
+from keyboards.source_tree_kb import source_browse_kb, source_detail_full_kb
 
 logger = logging.getLogger(__name__)
 router = Router(name="source_tree")
@@ -20,24 +20,48 @@ def _render_source(source: dict, index: int, total: int) -> str:
         f"📥 <b>التثبيت:</b> <code>{source['installs']:,}</code>\n"
         f"⭐ <b>التقييم:</b> {stars} <code>({source['rating']})</code>\n"
         f"👤 <b>المطوّر:</b> {source['author']}\n\n"
-        f"📝 {source['description']}\n\n"
-        f"<i>المصدر {index + 1} من {total}</i>"
+        f"📝 {source['description']}"
     )
+
+
+def _render_detail(source: dict) -> str:
+    return (
+        f"🔍 <b>{source['name']}</b>  <code>v{source['version']}</code>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📌 <b>الإصدار:</b>    {source['version']}\n"
+        f"👤 <b>المطوّر:</b>    {source['author']}\n"
+        f"🏷  <b>الفئة:</b>     {source['category']}\n"
+        f"🌱 <b>السعر:</b>     <code>{source['points']:,} بذرة</code>\n"
+        f"📥 <b>التثبيتات:</b> <code>{source['installs']:,}</code>\n"
+        f"⭐ <b>التقييم:</b>   <code>{source['rating']}/5.0</code>\n\n"
+        f"📝 <b>الوصف:</b>\n{source['description']}\n\n"
+        f"✅ متاح للتثبيت الآن."
+    )
+
+
+def _source_index(source_id: int) -> int:
+    return next((i for i, s in enumerate(FAKE_SOURCES) if s["id"] == source_id), 0)
 
 
 @router.message(F.text == "🌲 Source Tree")
 async def show_source_tree_msg(message: Message) -> None:
     source = FAKE_SOURCES[0]
-    text = _render_source(source, 0, len(FAKE_SOURCES))
-    await message.answer(text, reply_markup=source_detail_kb(source["id"]), parse_mode="HTML")
+    total = len(FAKE_SOURCES)
+    await message.answer(
+        _render_source(source, 0, total),
+        reply_markup=source_browse_kb(source["id"], 0, total),
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(F.data == "source_tree")
 async def show_source_tree(callback: CallbackQuery) -> None:
     source = FAKE_SOURCES[0]
-    text = _render_source(source, 0, len(FAKE_SOURCES))
+    total = len(FAKE_SOURCES)
     await callback.message.edit_text(
-        text, reply_markup=source_detail_kb(source["id"]), parse_mode="HTML"
+        _render_source(source, 0, total),
+        reply_markup=source_browse_kb(source["id"], 0, total),
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -47,9 +71,11 @@ async def paginate_sources(callback: CallbackQuery) -> None:
     page = int(callback.data.split("_")[-1])
     page = max(0, min(page, len(FAKE_SOURCES) - 1))
     source = FAKE_SOURCES[page]
-    text = _render_source(source, page, len(FAKE_SOURCES))
+    total = len(FAKE_SOURCES)
     await callback.message.edit_text(
-        text, reply_markup=source_detail_kb(source["id"]), parse_mode="HTML"
+        _render_source(source, page, total),
+        reply_markup=source_browse_kb(source["id"], page, total),
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -61,22 +87,11 @@ async def show_details(callback: CallbackQuery) -> None:
     if not source:
         await callback.answer("المصدر غير موجود", show_alert=True)
         return
-
-    current_idx = next(i for i, s in enumerate(FAKE_SOURCES) if s["id"] == source_id)
-    text = (
-        f"🔍 <b>تفاصيل: {source['name']}</b>\n\n"
-        f"📌 <b>الإصدار:</b> {source['version']}\n"
-        f"👤 <b>المطوّر:</b> {source['author']}\n"
-        f"🏷  <b>الفئة:</b> {source['category']}\n"
-        f"🌱 <b>السعر:</b> {source['points']:,} بذرة\n"
-        f"📥 <b>التثبيتات:</b> {source['installs']:,}\n"
-        f"⭐ <b>التقييم:</b> {source['rating']}/5.0\n\n"
-        f"📝 <b>الوصف:</b>\n{source['description']}\n\n"
-        f"✅ هذا المصدر متاح للتثبيت الآن."
-    )
+    idx = _source_index(source_id)
+    total = len(FAKE_SOURCES)
     await callback.message.edit_text(
-        text,
-        reply_markup=source_nav_kb(current_idx, len(FAKE_SOURCES)),
+        _render_detail(source),
+        reply_markup=source_detail_full_kb(source_id, idx, total),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -90,6 +105,11 @@ async def install_source(callback: CallbackQuery) -> None:
         await callback.answer("المصدر غير موجود", show_alert=True)
         return
     await callback.answer(
-        f"📦 يتم تثبيت «{source['name']}» ...\n🌱 سيُخصم {source['points']:,} بذرة",
+        f"📦 يتم تثبيت «{source['name']}»\n🌱 سيُخصم {source['points']:,} بذرة",
         show_alert=True,
     )
+
+
+@router.callback_query(F.data == "noop")
+async def noop(callback: CallbackQuery) -> None:
+    await callback.answer()
