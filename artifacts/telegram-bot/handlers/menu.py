@@ -3,6 +3,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 
 from keyboards.menu_kb import menu_kb, back_to_menu_kb
+from services.user_service import get_user
 
 logger = logging.getLogger(__name__)
 router = Router(name="menu")
@@ -12,6 +13,22 @@ MENU_TEXT = (
     "━━━━━━━━━━━━━━━━━\n\n"
     "اختر القسم الذي تريد الوصول إليه:"
 )
+
+ARABIC_MONTHS = [
+    "", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+]
+
+
+def _format_date(dt) -> str:
+    if not dt:
+        return "—"
+    return f"{dt.day} {ARABIC_MONTHS[dt.month]} {dt.year}"
+
+
+def _seeds_to_usd(seeds: int) -> str:
+    usd = seeds / 100
+    return f"{usd:.2f}$"
 
 
 @router.message(F.text == "☰ Menu")
@@ -27,17 +44,23 @@ async def show_menu(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "menu_profile")
 async def show_profile(callback: CallbackQuery) -> None:
-    user = callback.from_user
-    username = f"@{user.username}" if user.username else "—"
+    tg = callback.from_user
+    db_user = await get_user(tg.id)
+
+    username = f"@{tg.username}" if tg.username else "—"
+    seeds = db_user.points if db_user else 0
+    joined = _format_date(db_user.created_at) if db_user else "—"
+    usd_value = _seeds_to_usd(seeds)
+
     text = (
         "👤 <b>الملف الشخصي</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
-        f"🪪 <b>الاسم:</b>     {user.full_name}\n"
-        f"🔗 <b>المعرف:</b>   {username}\n"
-        f"🆔 <b>ID:</b>       <code>{user.id}</code>\n"
-        f"📋 <b>الخطة:</b>    <b>Free</b>\n"
-        f"🌱 <b>البذور:</b>   <code>0 بذرة</code>\n"
-        f"📅 <b>الانضمام:</b> منذ قليل\n\n"
+        f"🪪 <b>الاسم:</b>      {tg.full_name}\n"
+        f"🔗 <b>المعرف:</b>    {username}\n"
+        f"🆔 <b>ID:</b>        <code>{tg.id}</code>\n"
+        f"📋 <b>الخطة:</b>     <b>Free</b>\n"
+        f"🌱 <b>البذور:</b>    <code>{seeds:,} بذرة</code>  <i>≈ {usd_value}</i>\n"
+        f"📅 <b>الانضمام:</b>  {joined}\n\n"
         "🔒 <i>الحساب موثَّق وآمن</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
@@ -65,10 +88,15 @@ async def show_plan(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "menu_wallet")
 async def show_wallet(callback: CallbackQuery) -> None:
+    db_user = await get_user(callback.from_user.id)
+    seeds = db_user.points if db_user else 0
+    usd_value = _seeds_to_usd(seeds)
+
     text = (
         "🌱 <b>محفظة البذور</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
-        "💰 <b>رصيدك الحالي:</b>  <code>0 بذرة</code>\n\n"
+        f"💰 <b>رصيدك الحالي:</b>\n"
+        f"   <code>{seeds:,} بذرة</code>  <i>≈ {usd_value}</i>\n\n"
         "💡 <b>سعر الصرف:</b>    <code>1$ = 100 بذرة</code>\n\n"
         "📊 <b>سجل المعاملات:</b>\n"
         "   لا توجد معاملات بعد.\n\n"
@@ -81,15 +109,21 @@ async def show_wallet(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "menu_referral")
 async def show_referral(callback: CallbackQuery) -> None:
-    user_id = callback.from_user.id
+    tg = callback.from_user
+    db_user = await get_user(tg.id)
+    seeds = db_user.points if db_user else 0
+
+    bot_info = await callback.bot.get_me()
+    ref_link = f"https://t.me/{bot_info.username}?start=ref{tg.id}"
+
     text = (
         "👥 <b>نظام الإحالة</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
         f"🔗 <b>رابط الإحالة الخاص بك:</b>\n"
-        f"<code>https://t.me/sourcefarm_bot?start=ref{user_id}</code>\n\n"
+        f"<code>{ref_link}</code>\n\n"
         "📊 <b>إحصائياتك:</b>\n"
         "  • الأصدقاء المدعوون:  <code>0</code>\n"
-        "  • البذور المكتسبة:   <code>0 بذرة</code>\n\n"
+        f"  • رصيدك الحالي:      <code>{seeds:,} بذرة</code>\n\n"
         "🎁 اكسب <b>50 بذرة</b> عن كل صديق يسجّل! (= 0.50$)"
     )
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
