@@ -10,6 +10,11 @@ _raw_db_url: str = os.environ.get("DATABASE_URL", "")
 
 LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
 
+_admin_raw: str = os.environ.get("ADMIN_ID", "")
+ADMIN_IDS: set[int] = {
+    int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()
+}
+
 
 def _build_async_db_url(url: str) -> tuple[str, dict]:
     """Convert any postgres:// URL to postgresql+asyncpg:// and strip sslmode."""
