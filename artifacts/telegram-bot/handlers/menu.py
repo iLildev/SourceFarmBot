@@ -36,7 +36,7 @@ async def show_profile(callback: CallbackQuery) -> None:
         f"🔗 <b>المعرف:</b>   {username}\n"
         f"🆔 <b>ID:</b>       <code>{user.id}</code>\n"
         f"📋 <b>الخطة:</b>    <b>Free</b>\n"
-        f"💎 <b>النقاط:</b>   <code>0</code>\n"
+        f"🌱 <b>البذور:</b>   <code>0 بذرة</code>\n"
         f"📅 <b>الانضمام:</b> منذ قليل\n\n"
         "🔒 <i>الحساب موثَّق وآمن</i>"
     )
@@ -66,13 +66,14 @@ async def show_plan(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "menu_wallet")
 async def show_wallet(callback: CallbackQuery) -> None:
     text = (
-        "💎 <b>محفظة النقاط</b>\n"
+        "🌱 <b>محفظة البذور</b>\n"
         "━━━━━━━━━━━━━━━━━\n\n"
-        "💰 <b>رصيدك الحالي:</b>  <code>0 نقطة</code>\n\n"
+        "💰 <b>رصيدك الحالي:</b>  <code>0 بذرة</code>\n\n"
+        "💡 <b>سعر الصرف:</b>    <code>1$ = 100 بذرة</code>\n\n"
         "📊 <b>سجل المعاملات:</b>\n"
         "   لا توجد معاملات بعد.\n\n"
         "━━━━━━━━━━━━━━━━━\n"
-        "🛒 <i>شراء النقاط قريباً</i>"
+        "🛒 <i>شراء البذور قريباً</i>"
     )
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
     await callback.answer()
@@ -88,8 +89,8 @@ async def show_referral(callback: CallbackQuery) -> None:
         f"<code>https://t.me/sourcefarm_bot?start=ref{user_id}</code>\n\n"
         "📊 <b>إحصائياتك:</b>\n"
         "  • الأصدقاء المدعوون:  <code>0</code>\n"
-        "  • النقاط المكتسبة:   <code>0</code>\n\n"
-        "🎁 اكسب <b>50 نقطة</b> عن كل صديق يسجّل!"
+        "  • البذور المكتسبة:   <code>0 بذرة</code>\n\n"
+        "🎁 اكسب <b>50 بذرة</b> عن كل صديق يسجّل! (= 0.50$)"
     )
     await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
     await callback.answer()

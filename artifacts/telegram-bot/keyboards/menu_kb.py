@@ -6,7 +6,7 @@ def menu_kb() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text="👤 Profile", callback_data="menu_profile")],
             [InlineKeyboardButton(text="📋 Plan", callback_data="menu_plan")],
-            [InlineKeyboardButton(text="💎 Points Wallet", callback_data="menu_wallet")],
+            [InlineKeyboardButton(text="🌱 Seed Wallet", callback_data="menu_wallet")],
             [InlineKeyboardButton(text="👥 Referral System", callback_data="menu_referral")],
             [InlineKeyboardButton(text="🎫 Codes", callback_data="menu_codes")],
             [InlineKeyboardButton(text="❓ Help", callback_data="menu_help")],

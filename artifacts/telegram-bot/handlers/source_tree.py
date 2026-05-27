@@ -16,7 +16,7 @@ def _render_source(source: dict, index: int, total: int) -> str:
         f"📦 <b>{source['name']}</b>  <code>v{source['version']}</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🏷  <b>الفئة:</b>   {source['category']}\n"
-        f"💎 <b>السعر:</b>   <code>{source['points']:,} نقطة</code>\n"
+        f"🌱 <b>السعر:</b>   <code>{source['points']:,} بذرة</code>\n"
         f"📥 <b>التثبيت:</b> <code>{source['installs']:,}</code>\n"
         f"⭐ <b>التقييم:</b> {stars} <code>({source['rating']})</code>\n"
         f"👤 <b>المطوّر:</b> {source['author']}\n\n"
@@ -68,7 +68,7 @@ async def show_details(callback: CallbackQuery) -> None:
         f"📌 <b>الإصدار:</b> {source['version']}\n"
         f"👤 <b>المطوّر:</b> {source['author']}\n"
         f"🏷  <b>الفئة:</b> {source['category']}\n"
-        f"💎 <b>السعر:</b> {source['points']:,} نقطة\n"
+        f"🌱 <b>السعر:</b> {source['points']:,} بذرة\n"
         f"📥 <b>التثبيتات:</b> {source['installs']:,}\n"
         f"⭐ <b>التقييم:</b> {source['rating']}/5.0\n\n"
         f"📝 <b>الوصف:</b>\n{source['description']}\n\n"
@@ -90,6 +90,6 @@ async def install_source(callback: CallbackQuery) -> None:
         await callback.answer("المصدر غير موجود", show_alert=True)
         return
     await callback.answer(
-        f"📦 يتم تثبيت «{source['name']}» ...\n💎 سيُخصم {source['points']:,} نقطة",
+        f"📦 يتم تثبيت «{source['name']}» ...\n🌱 سيُخصم {source['points']:,} بذرة",
         show_alert=True,
     )
