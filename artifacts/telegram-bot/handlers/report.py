@@ -19,7 +19,7 @@ class ReportStates(StatesGroup):
     waiting_screenshot   = State()
 
 
-# ── Keyboards ──────────────────────────────────────────────────────────────────
+# ── Keyboards ────────────────────────────────────────────────────────────────
 
 def _skip_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
@@ -40,21 +40,26 @@ def _back_to_main_kb() -> InlineKeyboardMarkup:
     ]])
 
 
-# ── Helpers ─────────────────────────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
-def _extract_media(message: Message) -> tuple[str, str | None]:
+def _extract_media(message: Message) -> tuple[str, str | None, str | None]:
+    """
+    Returns (description, file_id, media_type).
+    media_type is one of: 'photo' | 'video' | 'document' | None
+    file_id is always captured when available so evidence is never lost.
+    """
     if message.photo:
-        return message.caption or "(صورة بدون وصف)", message.photo[-1].file_id
+        return message.caption or "(صورة بدون وصف)", message.photo[-1].file_id, "photo"
     if message.video:
-        return message.caption or "(فيديو)", None
+        return message.caption or "(فيديو)", message.video.file_id, "video"
     if message.document:
         fname = message.document.file_name or "ملف"
-        return message.caption or f"(ملف: {fname})", None
+        return message.caption or f"(ملف: {fname})", message.document.file_id, "document"
     if message.sticker:
-        return f"(ستيكر: {message.sticker.emoji or ''})", None
+        return f"(ستيكر: {message.sticker.emoji or ''})", None, None
     if message.voice or message.audio:
-        return "(رسالة صوتية)", None
-    return message.text or "(رسالة غير معروفة)", None
+        return "(رسالة صوتية)", None, None
+    return message.text or "(رسالة غير معروفة)", None, None
 
 
 def _replied_summary(replied: Message) -> str:
@@ -78,7 +83,8 @@ async def _notify_admins(
     user_id: int,
     user_name: str,
     description: str,
-    screenshot_id: str | None,
+    file_id: str | None = None,
+    media_type: str | None = None,
 ) -> None:
     header = (
         f"🚨 <b>بلاغ جديد — SourceFarm</b>\n"
@@ -88,8 +94,12 @@ async def _notify_admins(
     )
     for admin_id in ADMIN_IDS:
         try:
-            if screenshot_id:
-                await bot.send_photo(admin_id, photo=screenshot_id, caption=header, parse_mode="HTML")
+            if file_id and media_type == "photo":
+                await bot.send_photo(admin_id, photo=file_id, caption=header, parse_mode="HTML")
+            elif file_id and media_type == "video":
+                await bot.send_video(admin_id, video=file_id, caption=header, parse_mode="HTML")
+            elif file_id and media_type == "document":
+                await bot.send_document(admin_id, document=file_id, caption=header, parse_mode="HTML")
             else:
                 await bot.send_message(admin_id, header, parse_mode="HTML")
         except Exception as exc:
@@ -102,9 +112,10 @@ async def _finish_report(
     user_id: int,
     user_name: str,
     description: str,
-    screenshot_id: str | None = None,
+    file_id: str | None = None,
+    media_type: str | None = None,
 ) -> None:
-    await _notify_admins(bot, user_id, user_name, description, screenshot_id)
+    await _notify_admins(bot, user_id, user_name, description, file_id, media_type)
     await bot.send_message(
         chat_id,
         "✅ <b>تم إرسال بلاغك بنجاح!</b>\n\n"
@@ -116,7 +127,7 @@ async def _finish_report(
     logger.info("Report from tg_id=%s: %s", user_id, description[:120])
 
 
-# ── /report command ────────────────────────────────────────────────────────────
+# ── /report command ──────────────────────────────────────────────────────────
 
 @router.message(Command("report"))
 async def cmd_report(message: Message, state: FSMContext, bot: Bot) -> None:
@@ -144,8 +155,8 @@ async def cmd_report(message: Message, state: FSMContext, bot: Bot) -> None:
         return
 
     if message.photo or message.video or message.document:
-        description, screenshot_id = _extract_media(message)
-        await _finish_report(bot, message.chat.id, user.id, user_name, description, screenshot_id)
+        description, file_id, media_type = _extract_media(message)
+        await _finish_report(bot, message.chat.id, user.id, user_name, description, file_id, media_type)
         return
 
     await state.set_state(ReportStates.waiting_description)
@@ -157,17 +168,27 @@ async def cmd_report(message: Message, state: FSMContext, bot: Bot) -> None:
     )
 
 
-# ── Step 1: receive description ────────────────────────────────────────────────
+# ── Step 1: receive description ──────────────────────────────────────────────
 
 @router.message(ReportStates.waiting_description)
 async def receive_description(message: Message, state: FSMContext, bot: Bot) -> None:
-    user                     = message.from_user
-    description, screenshot_id = _extract_media(message)
-    if screenshot_id:
+    user                              = message.from_user
+    description, file_id, media_type = _extract_media(message)
+
+    if file_id:
         await state.clear()
-        await _finish_report(bot, message.chat.id, user.id, user.first_name or "مستخدم", description, screenshot_id)
+        await _finish_report(
+            bot, message.chat.id,
+            user.id, user.first_name or "مستخدم",
+            description, file_id, media_type,
+        )
         return
-    await state.update_data(description=description, user_id=user.id, user_name=user.first_name or "مستخدم")
+
+    await state.update_data(
+        description=description,
+        user_id=user.id,
+        user_name=user.first_name or "مستخدم",
+    )
     await state.set_state(ReportStates.waiting_screenshot)
     await message.answer(
         "📸 أرسل <b>screenshot</b> للمشكلة إن وجد (اختياري)",
@@ -175,7 +196,7 @@ async def receive_description(message: Message, state: FSMContext, bot: Bot) -> 
     )
 
 
-# ── Step 2: receive screenshot (or skip) ──────────────────────────────────────
+# ── Step 2: receive screenshot (or skip) ────────────────────────────────────
 
 @router.message(ReportStates.waiting_screenshot, F.photo)
 async def receive_screenshot(message: Message, state: FSMContext, bot: Bot) -> None:
@@ -185,7 +206,8 @@ async def receive_screenshot(message: Message, state: FSMContext, bot: Bot) -> N
     await _finish_report(
         bot, message.chat.id,
         data["user_id"], data["user_name"],
-        data.get("description", ""), screenshot_id,
+        data.get("description", ""),
+        screenshot_id, "photo",
     )
 
 
@@ -197,7 +219,7 @@ async def screenshot_wrong_type(message: Message) -> None:
     )
 
 
-# ── Inline callbacks ────────────────────────────────────────────────────────────
+# ── Inline callbacks ─────────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "report_skip")
 async def skip_screenshot(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:

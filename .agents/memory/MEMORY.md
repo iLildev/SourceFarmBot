@@ -1,0 +1,3 @@
+- [Atomic seed operations](atomic-seeds.md) — all points mutations must use SQL UPDATE not ORM read-modify-write to avoid race conditions
+- [Report media types](report-media.md) — _extract_media returns (desc, file_id, media_type); _notify_admins must branch on media_type to call correct send_* method
+- [Install FSM guard](install-fsm.md) — always validate source_id > 0 after state.get_data(); state can expire or be bypassed

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import User
@@ -9,9 +9,9 @@ from database.session import async_session_maker
 
 logger = logging.getLogger(__name__)
 
-WELCOME_SEEDS = 20
-REFERRAL_BONUS_REFERRER = 20
-REFERRAL_BONUS_NEW_USER = 10
+WELCOME_SEEDS            = 20
+REFERRAL_BONUS_REFERRER  = 20
+REFERRAL_BONUS_NEW_USER  = 10
 
 
 async def get_or_create_user(
@@ -56,35 +56,43 @@ async def get_or_create_user(
             if ref_user:
                 valid_referrer = ref_user
 
+        starting_seeds = WELCOME_SEEDS
+        if valid_referrer:
+            starting_seeds += REFERRAL_BONUS_NEW_USER
+
         user = User(
             telegram_id=telegram_id,
             first_name=first_name,
             last_name=last_name,
             username=username,
-            points=0,
+            points=starting_seeds,
             referred_by=valid_referrer.telegram_id if valid_referrer else None,
             is_active=True,
             created_at=datetime.utcnow(),
         )
         session.add(user)
-        await session.flush()
 
-        user.points = WELCOME_SEEDS
+        # Atomic referrer bonus — avoids race condition from ORM read-modify-write
         if valid_referrer:
-            user.points += REFERRAL_BONUS_NEW_USER
-            valid_referrer.points += REFERRAL_BONUS_REFERRER
+            await session.execute(
+                update(User)
+                .where(User.id == valid_referrer.id)
+                .values(points=User.points + REFERRAL_BONUS_REFERRER)
+            )
 
         await session.commit()
         await session.refresh(user)
 
         logger.info(
             "New user registered: tg_id=%s ref_by=%s seeds=%s",
-            telegram_id, valid_referrer.telegram_id if valid_referrer else None, user.points,
+            telegram_id,
+            valid_referrer.telegram_id if valid_referrer else None,
+            user.points,
         )
         if valid_referrer:
             logger.info(
-                "Referral reward: referrer tg_id=%s +%s seeds (balance=%s)",
-                valid_referrer.telegram_id, REFERRAL_BONUS_REFERRER, valid_referrer.points,
+                "Referral reward: referrer tg_id=%s +%s seeds",
+                valid_referrer.telegram_id, REFERRAL_BONUS_REFERRER,
             )
         return user, True
 
@@ -108,17 +116,22 @@ async def get_referral_count(telegram_id: int) -> int:
 
 
 async def add_seeds(telegram_id: int, amount: int) -> User | None:
-    """Add seeds (points) to a user's balance. Returns updated user or None."""
+    """
+    Atomically add seeds to a user's balance.
+    Uses a single UPDATE statement to avoid race conditions.
+    Returns the updated user, or None if not found.
+    """
     async with async_session_maker() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
+            update(User)
+            .where(User.telegram_id == telegram_id)
+            .values(points=User.points + amount)
+            .returning(User)
         )
         user = result.scalar_one_or_none()
         if not user:
             return None
-        user.points += amount
         await session.commit()
-        await session.refresh(user)
         logger.info(
             "Seeds added: tg_id=%s amount=%s new_balance=%s",
             telegram_id, amount, user.points,

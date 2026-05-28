@@ -55,15 +55,15 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
     tg_id    = callback.from_user.id
     is_admin = tg_id in ADMIN_IDS
 
-    # ── Availability check ────────────────────────────────────────────────────
+    # ── Availability check ───────────────────────────────────────────────────
     if not source.get("available", True):
         await callback.answer(
-            f"🔒 {source['name']} قيد التطوير بعد — سيُطلق قريباً!",
+            f"🔒 {source['name']} قيد التطوير — سيُطلق قريباً!",
             show_alert=True,
         )
         return
 
-    # ── One copy per source check ─────────────────────────────────────────────
+    # ── One copy per source ──────────────────────────────────────────────────
     if not is_admin and await user_has_source(tg_id, source_id):
         await callback.answer(
             f"✋ لديك نسخة مثبّتة مسبقاً من {source['name']}.\n\n"
@@ -71,12 +71,13 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
             show_alert=True,
         )
         return
-    seeds    = await get_user_seeds(tg_id)
-    db_user  = await get_user(tg_id)
+
+    seeds   = await get_user_seeds(tg_id)
+    db_user = await get_user(tg_id)
 
     base_cost = source["points"]
 
-    # ── Determine effective cost and benefit ─────────────────────────────────
+    # ── Determine effective cost ─────────────────────────────────────────────
     if is_admin:
         effective_cost = 0
         benefit_type   = "admin"
@@ -108,22 +109,19 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
         cost_display   = f"<code>{effective_cost:,} بذرة</code>"
         benefit_note   = ""
 
-    # ── Check affordability ───────────────────────────────────────────────────
+    # ── Check affordability ──────────────────────────────────────────────────
     if benefit_type not in ("admin", "free_install") and seeds < effective_cost:
         shortage = effective_cost - seeds
         await callback.answer(
             f"🌱 رصيدك غير كافٍ!\n\n"
             f"السعر:    {effective_cost:,} بذرة\n"
             f"رصيدك:   {seeds:,} بذرة\n"
-            f"يُنقصك:  {shortage:,} بذرة",
+            f"ينقصك:   {shortage:,} بذرة",
             show_alert=True,
         )
         return
 
-    # ── Override any existing FSM install state ───────────────────────────────
-    if await state.get_state() == InstallStates.waiting_for_token.state:
-        await state.clear()
-
+    await state.clear()
     await state.set_state(InstallStates.waiting_for_token)
     await state.update_data(
         source_id=source_id,
@@ -183,6 +181,26 @@ async def receive_token(message: Message, state: FSMContext) -> None:
         )
         return
 
+    # Read state once
+    data              = await state.get_data()
+    source_id:   int  = data.get("source_id", 0)
+    source_name: str  = data.get("source_name", "")
+    cost:        int  = data.get("cost", 0)
+    benefit_type: str = data.get("benefit_type", "none")
+    tg_id             = message.from_user.id
+
+    # Guard: FSM state expired or was bypassed
+    if not source_id:
+        await state.clear()
+        await message.answer(
+            "⚠️ انتهت جلسة التثبيت. ابدأ من جديد من قائمة المصادر.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🌲 Source Tree", callback_data="source_tree")],
+            ]),
+            parse_mode="HTML",
+        )
+        return
+
     wait_msg = await message.answer("🔄 جارٍ التحقق من التوكن...")
 
     try:
@@ -206,24 +224,15 @@ async def receive_token(message: Message, state: FSMContext) -> None:
         )
         return
 
-    data         = await state.get_data()
-    source_name: str = data["source_name"]
-    cost: int        = data["cost"]
-    benefit_type: str = data.get("benefit_type", "none")
-    tg_id            = message.from_user.id
-
     bot_username   = bot_info.get("username", "")
     bot_first_name = bot_info.get("first_name", source_name)
-
-    data         = await state.get_data()
-    source_id_for_install: int = data.get("source_id", 0)
 
     try:
         await install_bot(
             telegram_id=tg_id,
             token=token,
             bot_name=bot_first_name,
-            source_id=source_id_for_install,
+            source_id=source_id,
             source_cost=cost,
             source_name=source_name,
             bot_username=bot_username,
@@ -243,9 +252,11 @@ async def receive_token(message: Message, state: FSMContext) -> None:
             )
         elif err == "source_already_installed":
             msg = (
-                f"✋ <b>لديك نسخة مثبّتة مسبقاً من هذا السورس.</b>\n\n"
+                "✋ <b>لديك نسخة مثبّتة مسبقاً من هذا السورس.</b>\n\n"
                 "كل سورس يُسمح بنسخة واحدة فقط لكل مستخدم."
             )
+        elif err == "invalid_source":
+            msg = "❌ مصدر غير صالح. ابدأ التثبيت من جديد."
         else:
             msg = "❌ حدث خطأ أثناء التثبيت. حاول مجدداً."
         await message.answer(msg, reply_markup=_cancel_kb(), parse_mode="HTML")
@@ -274,7 +285,6 @@ async def receive_token(message: Message, state: FSMContext) -> None:
     free_left    = db_user.free_installs if db_user else 0
     discount_pct = db_user.discount_pct if db_user else 0
 
-    # ── Build success card ────────────────────────────────────────────────────
     benefit_line = ""
     if benefit_type == "free_install":
         benefit_line = f"\n📦 <b>تثبيتات مجانية متبقية:</b>  <code>{free_left}</code>"

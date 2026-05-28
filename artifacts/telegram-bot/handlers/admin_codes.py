@@ -159,7 +159,19 @@ def _parse_quick_newcode(parts: list[str]) -> dict | None:
         "max_uses": None, "expires_at": None, "description": None,
         "per_user_limit": 1, "min_seeds": 0,
     }
-    for part in parts[4:]:
+    # Find the index where desc: starts so we can join all remaining words
+    desc_start_idx = None
+    for i, part in enumerate(parts[4:], start=4):
+        if part.startswith("desc:"):
+            desc_start_idx = i
+            break
+
+    for i, part in enumerate(parts[4:], start=4):
+        if i == desc_start_idx:
+            # Join everything from desc: onward to support spaces in descriptions
+            raw = " ".join(parts[desc_start_idx:])
+            kwargs["description"] = raw[5:].replace("_", " ")
+            break
         if part.startswith("max:") and part[4:].isdigit():
             kwargs["max_uses"] = int(part[4:])
         elif part.startswith("expires:"):
@@ -167,8 +179,6 @@ def _parse_quick_newcode(parts: list[str]) -> dict | None:
                 kwargs["expires_at"] = datetime.strptime(part[8:], "%Y-%m-%d")
             except ValueError:
                 pass
-        elif part.startswith("desc:"):
-            kwargs["description"] = part[5:].replace("_", " ")
         elif part.startswith("peruser:") and part[8:].isdigit():
             kwargs["per_user_limit"] = int(part[8:])
         elif part.startswith("minseeds:") and part[9:].isdigit():

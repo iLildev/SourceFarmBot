@@ -1,5 +1,5 @@
 """
-install_service — validates token, deducts seeds, persists Bot record,
+install_service — validates token, deducts seeds atomically, persists Bot record,
 then delegates startup to BotManager.
 """
 import logging
@@ -71,11 +71,14 @@ async def install_bot(
     """
     1. Validate user + seeds.
     2. Detect duplicate tokens.
-    3. Deduct seeds.
+    3. Atomically deduct seeds (prevents race conditions).
     4. Persist Bot record with encrypted token.
     5. Start bot via BotManager.
     Raises InstallError on any failure.
     """
+    if not source_id:
+        raise InstallError("invalid_source")
+
     token = token.strip()
     hint  = token[:10]
 
@@ -98,14 +101,14 @@ async def install_bot(
             if bot_count >= MAX_BOTS_FREE:
                 raise InstallError("bot_limit_reached")
 
-        # One copy per source — same source_id cannot be installed twice by the same user
+        # One copy per source
         dup_source_result = await session.execute(
             select(Bot).where(Bot.owner_id == user.id, Bot.source_id == source_id)
         )
         if dup_source_result.scalar_one_or_none():
             raise InstallError("source_already_installed")
 
-        # Seeds check
+        # Seeds check (pre-flight — real deduction is atomic below)
         if source_cost > 0 and user.points < source_cost:
             raise InstallError("insufficient_seeds")
 
@@ -116,9 +119,18 @@ async def install_bot(
         if dup_result.scalar_one_or_none():
             raise InstallError("duplicate_token")
 
-        # Deduct seeds
+        # Atomic seed deduction — WHERE points >= cost prevents overdraft under concurrency
         if source_cost > 0:
-            user.points -= source_cost
+            deduct_result = await session.execute(
+                update(User)
+                .where(User.id == user.id, User.points >= source_cost)
+                .values(points=User.points - source_cost)
+                .returning(User.points)
+            )
+            new_balance = deduct_result.scalar_one_or_none()
+            if new_balance is None:
+                # Another concurrent request already spent the seeds
+                raise InstallError("insufficient_seeds")
 
         # Encrypt full token
         try:
@@ -147,16 +159,23 @@ async def install_bot(
         await session.refresh(bot)
 
         logger.info(
-            "Bot installed: owner_tg=%s bot_name=%s source=%s cost=%s seeds_left=%s bot_id=%s",
-            telegram_id, bot_name, source_name, source_cost, user.points, bot.id,
+            "Bot installed: owner_tg=%s bot_name=%s source=%s cost=%s bot_id=%s",
+            telegram_id, bot_name, source_name, source_cost, bot.id,
         )
 
     # Start the bot subprocess via BotManager (outside the DB session)
     from runtime.bot_manager import get_manager
     manager = get_manager()
     started = await manager.start_bot(bot.id)
+
     if not started:
-        logger.error("BotManager failed to start bot_id=%s — stored but not running.", bot.id)
-        # Don't raise — bot is persisted, user can restart manually later
+        logger.error("BotManager failed to start bot_id=%s — marking as error.", bot.id)
+        async with async_session_maker() as session:
+            await session.execute(
+                update(Bot)
+                .where(Bot.id == bot.id)
+                .values(status="error", is_running=False)
+            )
+            await session.commit()
 
     return bot
