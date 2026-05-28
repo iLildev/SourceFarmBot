@@ -146,11 +146,35 @@ async def dev_plugins(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "dev_logs")
 async def dev_logs(callback: CallbackQuery) -> None:
-    text = (
-        "📋 <b>Logs</b>\n\n"
-        "عرض سجلات بوتاتك في الوقت الفعلي\n\n"
-        "<i>هذه الميزة قيد التطوير — قريباً</i>"
-    )
+    import html as _html
+    from runtime.log_buffer import get_log_buffer
+
+    bots = await get_user_bots(callback.from_user.id)
+
+    if not bots:
+        text = (
+            "📋 <b>Logs</b>\n\n"
+            "لا يوجد لديك بوتات مثبّتة بعد.\n\n"
+            "<i>ثبّت سورساً من 🌲 Source Tree لرؤية السجلات هنا.</i>"
+        )
+    else:
+        buf   = get_log_buffer()
+        lines = buf.get_for_bots([b.id for b in bots], limit=20)
+
+        if not lines:
+            body = "<i>لا توجد سجلات بعد — البوت لم يُشغَّل أو لم يُنتج أي سجلات.</i>"
+        else:
+            safe = [_html.escape(ln) for ln in lines]
+            body = "\n".join(f"<code>{ln}</code>" for ln in safe)
+
+        bot_names = "، ".join(b.name for b in bots[:3])
+        text = (
+            f"📋 <b>Live Logs</b>\n"
+            f"<i>{_html.escape(bot_names)}</i>\n"
+            f"━━━━━━━━━━━━━━━━━\n\n"
+            f"{body}"
+        )
+
     await callback.message.edit_text(text, reply_markup=back_to_realdev_kb(), parse_mode="HTML")
     await callback.answer()
 

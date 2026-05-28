@@ -17,6 +17,10 @@ ADMIN_IDS: set[int] = {
 
 OWNER_USERNAME: str = os.environ.get("OWNER_USERNAME", "")
 
+# ── Bot limits ────────────────────────────────────────────────────────────────
+# Maximum number of bots a regular user can install (admins are exempt)
+MAX_BOTS_FREE: int = int(os.environ.get("MAX_BOTS_FREE", "3"))
+
 # ── Webhook (optional) ────────────────────────────────────────────────────────
 # Set WEBHOOK_HOST to your public HTTPS URL to enable webhook mode.
 # Example: https://sourcefarm.replit.app

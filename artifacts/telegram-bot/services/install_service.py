@@ -7,12 +7,13 @@ import re
 import aiohttp
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 
 from database.models import Bot, User
 from database.session import async_session_maker
 from runtime.crypto import encrypt_token
 from services.user_service import get_user
+from config import MAX_BOTS_FREE
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,16 @@ async def install_bot(
         user = user_result.scalar_one_or_none()
         if not user:
             raise InstallError("user_not_found")
+
+        # Bot count limit (admins bypass the limit)
+        from config import ADMIN_IDS
+        if user.telegram_id not in ADMIN_IDS:
+            bot_count_result = await session.execute(
+                select(func.count()).select_from(Bot).where(Bot.owner_id == user.id)
+            )
+            bot_count = bot_count_result.scalar() or 0
+            if bot_count >= MAX_BOTS_FREE:
+                raise InstallError("bot_limit_reached")
 
         # Seeds check
         if source_cost > 0 and user.points < source_cost:

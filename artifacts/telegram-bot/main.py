@@ -93,6 +93,10 @@ async def _run_webhook(bot: Bot, dp: Dispatcher) -> None:
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=path)
     setup_application(app, dp, bot=bot)
 
+    # Register sub-bot webhook routes on the same aiohttp server
+    from runtime.webhook_server import add_routes_to_app
+    add_routes_to_app(app)
+
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host="0.0.0.0", port=WEBHOOK_PORT)

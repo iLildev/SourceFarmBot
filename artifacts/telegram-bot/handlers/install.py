@@ -14,7 +14,7 @@ from services.install_service import (
 )
 from services.user_service import get_user
 from services.coupon_service import consume_free_install, consume_discount
-from config import ADMIN_IDS
+from config import ADMIN_IDS, MAX_BOTS_FREE
 
 logger = logging.getLogger(__name__)
 router = Router(name="install")
@@ -216,6 +216,12 @@ async def receive_token(message: Message, state: FSMContext) -> None:
             msg = "🌱 <b>رصيد غير كافٍ.</b>\n\nالبذور نقصت. اشحن رصيدك وحاول مجدداً."
         elif err == "duplicate_token":
             msg = "⚠️ <b>هذا البوت مسجّل مسبقاً.</b>\n\nلا يمكن تثبيت نفس البوت مرتين."
+        elif err == "bot_limit_reached":
+            msg = (
+                f"🚫 <b>وصلت للحد الأقصى!</b>\n\n"
+                f"يمكنك تثبيت <b>{MAX_BOTS_FREE} بوتات</b> كحد أقصى في الخطة المجانية.\n\n"
+                f"احذف أحد بوتاتك الحالية أو قم بترقية خطتك لإضافة المزيد."
+            )
         else:
             msg = "❌ حدث خطأ أثناء التثبيت. حاول مجدداً."
         await message.answer(msg, reply_markup=_cancel_kb(), parse_mode="HTML")
