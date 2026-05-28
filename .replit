@@ -54,4 +54,4 @@ packages = ["cargo", "libiconv", "libxcrypt", "openssl", "pkg-config", "postgres
 [userenv]
 
 [userenv.shared]
-PORT = "8080"
+PORT = "8000"
