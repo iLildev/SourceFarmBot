@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 BOT_COMMANDS = [
     BotCommand(command="start",  description="🏠 القائمة الرئيسية"),
+    BotCommand(command="mycode", description="🔗 رابط الإحالة الخاص بك"),
     BotCommand(command="search", description="🔍 البحث في المصادر"),
     BotCommand(command="top",    description="🏆 أفضل المصادر"),
     BotCommand(command="report", description="🚨 الإبلاغ عن مشكلة"),

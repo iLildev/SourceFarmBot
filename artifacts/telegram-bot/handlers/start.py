@@ -1,6 +1,8 @@
 import logging
+from urllib.parse import quote
+
 from aiogram import Router, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.main_kb import main_menu_kb, welcome_inline_kb
@@ -8,7 +10,10 @@ from keyboards.mode_kb import studio_mode_kb, realdev_mode_kb
 from keyboards.source_tree_kb import source_browse_kb
 from keyboards.menu_kb import back_to_menu_kb
 from data.sources import SOURCES
-from services.user_service import get_or_create_user, WELCOME_SEEDS, REFERRAL_BONUS_NEW_USER
+from services.user_service import (
+    get_or_create_user, get_user, get_referral_count,
+    WELCOME_SEEDS, REFERRAL_BONUS_NEW_USER, REFERRAL_BONUS_REFERRER,
+)
 
 logger = logging.getLogger(__name__)
 router = Router(name="start")
@@ -87,6 +92,21 @@ async def cmd_start(message: Message) -> None:
             total=user.points,
         )
         logger.info("New referred user: tg_id=%s ref_by=%s", tg_user.id, user.referred_by)
+
+        # ── Notify referrer ──────────────────────────────────────────────────
+        try:
+            await message.bot.send_message(
+                chat_id=user.referred_by,
+                text=(
+                    "🎉 <b>إحالة جديدة!</b>\n\n"
+                    f"<b>{name}</b> انضم لـ SourceFarm عبر رابطك للتو.\n\n"
+                    f"💰 <b>+{REFERRAL_BONUS_REFERRER} بذرة</b> أُضيفت لرصيدك تلقائياً! 🌱"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass  # المستخدم قد يكون حظر البوت — لا نوقف التسجيل بسببه
+
     elif created:
         text = WELCOME_NEW_TEXT.format(name=name, seeds=user.points)
         logger.info("New user: tg_id=%s seeds=%s", tg_user.id, user.points)
@@ -273,6 +293,39 @@ async def w_lang(callback: CallbackQuery) -> None:
         parse_mode="HTML",
     )
     await callback.answer()
+
+
+@router.message(Command("mycode"))
+async def cmd_mycode(message: Message) -> None:
+    tg      = message.from_user
+    db_user = await get_user(tg.id)
+    if not db_user:
+        await message.answer("❌ سجّل أولاً بكتابة /start")
+        return
+
+    bot_info  = await message.bot.get_me()
+    ref_link  = f"https://t.me/{bot_info.username}?start=ref{tg.id}"
+    ref_count = await get_referral_count(tg.id)
+    earned    = ref_count * REFERRAL_BONUS_REFERRER
+
+    share_text = (
+        f"🌱 انضم لـ SourceFarm وأنشئ بوتات Telegram احترافية بدون كود! "
+        f"احصل على {REFERRAL_BONUS_NEW_USER} بذرة مجانية عند التسجيل 🎁"
+    )
+    share_url = f"https://t.me/share/url?url={quote(ref_link)}&text={quote(share_text)}"
+
+    text = (
+        "🔗 <b>رابط الإحالة الخاص بك</b>\n\n"
+        f"<code>{ref_link}</code>\n\n"
+        f"👥 المدعوون:   <b>{ref_count}</b>\n"
+        f"💰 مكتسب:     <b>{earned:,} بذرة</b>\n"
+        f"🌱 رصيدك:     <b>{db_user.points:,} بذرة</b>\n\n"
+        f"<i>أنت تحصل على +{REFERRAL_BONUS_REFERRER} بذرة لكل صديق يسجّل</i>"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 مشاركة الرابط", url=share_url)],
+    ])
+    await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
 
 @router.callback_query(F.data == "close_msg")
