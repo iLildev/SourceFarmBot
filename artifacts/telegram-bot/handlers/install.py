@@ -11,6 +11,7 @@ from services.install_service import (
     get_user_seeds,
     install_bot,
     is_valid_token_format,
+    user_has_source,
 )
 from services.user_service import get_user
 from services.coupon_service import consume_free_install, consume_discount
@@ -53,6 +54,15 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
 
     tg_id    = callback.from_user.id
     is_admin = tg_id in ADMIN_IDS
+
+    # ── One copy per source check ─────────────────────────────────────────────
+    if not is_admin and await user_has_source(tg_id, source_id):
+        await callback.answer(
+            f"✋ لديك نسخة مثبّتة مسبقاً من {source['name']}.\n\n"
+            "كل سورس يُسمح بنسخة واحدة فقط لكل مستخدم.",
+            show_alert=True,
+        )
+        return
     seeds    = await get_user_seeds(tg_id)
     db_user  = await get_user(tg_id)
 
@@ -221,6 +231,11 @@ async def receive_token(message: Message, state: FSMContext) -> None:
                 f"🚫 <b>وصلت للحد الأقصى!</b>\n\n"
                 f"يمكنك تثبيت <b>{MAX_BOTS_FREE} بوتات</b> كحد أقصى في الخطة المجانية.\n\n"
                 f"احذف أحد بوتاتك الحالية أو قم بترقية خطتك لإضافة المزيد."
+            )
+        elif err == "source_already_installed":
+            msg = (
+                f"✋ <b>لديك نسخة مثبّتة مسبقاً من هذا السورس.</b>\n\n"
+                "كل سورس يُسمح بنسخة واحدة فقط لكل مستخدم."
             )
         else:
             msg = "❌ حدث خطأ أثناء التثبيت. حاول مجدداً."

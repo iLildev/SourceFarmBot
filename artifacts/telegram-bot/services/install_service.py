@@ -28,6 +28,21 @@ def is_valid_token_format(token: str) -> bool:
     return bool(TOKEN_RE.match(token.strip()))
 
 
+async def user_has_source(telegram_id: int, source_id: int) -> bool:
+    """Return True if the user already has a bot installed from this source."""
+    async with async_session_maker() as session:
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            return False
+        result = await session.execute(
+            select(Bot).where(Bot.owner_id == user.id, Bot.source_id == source_id)
+        )
+        return result.scalar_one_or_none() is not None
+
+
 async def fetch_bot_info(token: str) -> dict:
     """Call Telegram getMe to validate token. Returns bot info dict."""
     url = f"https://api.telegram.org/bot{token}/getMe"
@@ -81,6 +96,13 @@ async def install_bot(
             bot_count = bot_count_result.scalar() or 0
             if bot_count >= MAX_BOTS_FREE:
                 raise InstallError("bot_limit_reached")
+
+        # One copy per source — same source_id cannot be installed twice by the same user
+        dup_source_result = await session.execute(
+            select(Bot).where(Bot.owner_id == user.id, Bot.source_id == source_id)
+        )
+        if dup_source_result.scalar_one_or_none():
+            raise InstallError("source_already_installed")
 
         # Seeds check
         if source_cost > 0 and user.points < source_cost:
