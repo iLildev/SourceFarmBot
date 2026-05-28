@@ -29,6 +29,8 @@ async def init_db() -> None:
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS discount_pct    INTEGER   DEFAULT 0",
             "CREATE INDEX IF NOT EXISTS ix_users_referred_by ON users (referred_by)",
             "CREATE INDEX IF NOT EXISTS ix_users_last_seen   ON users (last_seen)",
+            "ALTER TABLE bots ADD COLUMN IF NOT EXISTS username   VARCHAR(64) DEFAULT NULL",
+            "ALTER TABLE bots ADD COLUMN IF NOT EXISTS bot_config TEXT        DEFAULT NULL",
         ]
         for sql in migrations:
             await conn.execute(text(sql))

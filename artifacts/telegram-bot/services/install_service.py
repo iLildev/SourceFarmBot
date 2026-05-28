@@ -66,6 +66,7 @@ async def install_bot(
     source_id: int,
     source_cost: int,
     source_name: str,
+    bot_username: str = "",
 ) -> Bot:
     """
     1. Validate user + seeds.
@@ -130,6 +131,7 @@ async def install_bot(
         bot = Bot(
             owner_id=user.id,
             name=bot_name,
+            username=bot_username or None,
             token_hint=hint,
             token_encrypted=encrypted,
             source_id=source_id,

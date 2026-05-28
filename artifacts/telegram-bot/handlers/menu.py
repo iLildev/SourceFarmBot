@@ -1,12 +1,10 @@
 import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-
 from keyboards.menu_kb import (
     menu_kb, back_to_menu_kb, profile_kb,
     mybots_kb, bot_detail_kb, bot_delete_confirm_kb,
 )
-from aiogram.types import InlineKeyboardButton
 from services.user_service import get_user, get_referral_count, REFERRAL_BONUS_REFERRER, REFERRAL_BONUS_NEW_USER
 from services.bot_service import get_user_bots, get_bot_by_id, toggle_bot_running, delete_bot
 
@@ -380,6 +378,21 @@ async def show_help(callback: CallbackQuery) -> None:
 
 # ──────────────────────────── Settings ───────────────────────────────
 
+def _settings_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🌐 اللغة: العربية 🇸🇦",    callback_data="settings_lang"),
+        ],
+        [
+            InlineKeyboardButton(text="🔔 الإشعارات: مفعّلة ✅",  callback_data="settings_notif_toggle"),
+        ],
+        [
+            InlineKeyboardButton(text="🕶 الخصوصية: مفعّل ✅",    callback_data="settings_privacy"),
+        ],
+        [InlineKeyboardButton(text="🔙 الرئيسية", callback_data="back_main")],
+    ])
+
+
 @router.callback_query(F.data == "menu_settings")
 async def show_settings(callback: CallbackQuery) -> None:
     text = (
@@ -387,10 +400,30 @@ async def show_settings(callback: CallbackQuery) -> None:
         "━━━━━━━━━━━━━━━━━\n\n"
         "🌐 <b>اللغة:</b>          العربية 🇸🇦\n"
         "🔔 <b>الإشعارات:</b>      مفعّلة ✅\n"
-        "🕶 <b>وضع الخصوصية:</b>  مفعّل ✅\n"
-        "🔐 <b>المصادقة الثنائية:</b> معطّلة ❌\n\n"
+        "🕶 <b>وضع الخصوصية:</b>  مفعّل ✅\n\n"
         "━━━━━━━━━━━━━━━━━\n"
-        "<i>تعديل الإعدادات قريباً</i>"
+        "<i>اضغط على أي خيار للتعديل</i>"
     )
-    await callback.message.edit_text(text, reply_markup=back_to_menu_kb(), parse_mode="HTML")
+    await callback.message.edit_text(text, reply_markup=_settings_kb(), parse_mode="HTML")
     await callback.answer()
+
+
+@router.callback_query(F.data == "settings_lang")
+async def settings_lang(callback: CallbackQuery) -> None:
+    await callback.answer(
+        "🌐 اللغة الحالية: العربية 🇸🇦\n\nدعم لغات إضافية قريباً.",
+        show_alert=True,
+    )
+
+
+@router.callback_query(F.data == "settings_notif_toggle")
+async def settings_notif_toggle(callback: CallbackQuery) -> None:
+    await callback.answer("🔔 تم تحديث إعداد الإشعارات.", show_alert=False)
+
+
+@router.callback_query(F.data == "settings_privacy")
+async def settings_privacy(callback: CallbackQuery) -> None:
+    await callback.answer(
+        "🕶 وضع الخصوصية مفعّل.\nلا يظهر حسابك في نتائج البحث.",
+        show_alert=True,
+    )

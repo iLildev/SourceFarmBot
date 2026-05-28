@@ -69,6 +69,8 @@ class Bot(Base):
     installed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     mode: Mapped[str] = mapped_column(String(16), default="studio")
+    username: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    bot_config: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     owner: Mapped["User"] = relationship("User", back_populates="bots")

@@ -16,6 +16,7 @@ class Source(TypedDict):
     github_url: str
     what_you_get: list[str]
     requirements: list[str]
+    available: bool   # False = coming soon, install button disabled
 
 
 SOURCES: list[Source] = [
@@ -33,6 +34,7 @@ SOURCES: list[Source] = [
         "author": "SourceFarm",
         "version": "1.0.0",
         "github_url": "",
+        "available": True,
         "description": (
             "حزمة حماية متكاملة بنتها SourceFarm من الصفر — "
             "كابتشا رياضي، كشف ريد، فلتر سبام وروابط، ونظام تحذيرات متدرّج. "
@@ -75,6 +77,7 @@ SOURCES: list[Source] = [
         "author": "SourceFarm",
         "version": "1.0.0",
         "github_url": "",
+        "available": True,
         "description": (
             "بوت إدارة مجموعات احترافي من SourceFarm — "
             "ترحيب مخصص، حظر وكيك، تحذيرات، قواعد المجموعة، "
@@ -118,6 +121,7 @@ SOURCES: list[Source] = [
         "author": "SourceFarm",
         "version": "0.9.0",
         "github_url": "",
+        "available": False,
         "description": (
             "متجر رقمي متكامل داخل Telegram من SourceFarm — "
             "عرض منتجات، سلة تسوق، دفع بـ Telegram Stars أو USDT، "
@@ -159,6 +163,7 @@ SOURCES: list[Source] = [
         "author": "SourceFarm",
         "version": "0.8.0",
         "github_url": "",
+        "available": False,
         "description": (
             "بوت بث جماعي احترافي من SourceFarm — "
             "أرسل نص أو صورة أو فيديو لآلاف المستخدمين دفعة واحدة "
@@ -197,6 +202,7 @@ SOURCES: list[Source] = [
         "author": "SourceFarm",
         "version": "0.9.0",
         "github_url": "",
+        "available": False,
         "description": (
             "حوّل قناتك أو مجموعتك إلى خدمة مدفوعة احترافية — "
             "إدارة اشتراكات تلقائية، قبول Telegram Stars، "
@@ -238,6 +244,7 @@ SOURCES: list[Source] = [
         "author": "SourceFarm",
         "version": "0.7.0",
         "github_url": "",
+        "available": False,
         "description": (
             "اعرف مجموعتك من الداخل — إحصاءات تفصيلية عن النشاط، "
             "أكثر الأعضاء تفاعلاً، ساعات الذروة، ونمو الأعضاء "
@@ -277,6 +284,7 @@ SOURCES: list[Source] = [
         "author": "SourceFarm",
         "version": "0.8.0",
         "github_url": "",
+        "available": False,
         "description": (
             "أضف الحياة لمجموعتك بمسابقات وألعاب تفاعلية من SourceFarm — "
             "أسئلة وإجابات، عد تنازلي، لوحة ترتيب بالنقاط، "

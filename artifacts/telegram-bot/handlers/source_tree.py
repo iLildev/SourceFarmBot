@@ -77,10 +77,10 @@ def _source_index(source_id: int) -> int:
 @router.message(F.text == "🌲 Source Tree")
 async def show_source_tree_msg(message: Message) -> None:
     source = SOURCES[0]
-    total = len(SOURCES)
+    total  = len(SOURCES)
     await message.answer(
         _render_source(source, 0, total),
-        reply_markup=source_browse_kb(source["id"], 0, total),
+        reply_markup=source_browse_kb(source["id"], 0, total, source.get("available", True)),
         parse_mode="HTML",
     )
 
@@ -88,10 +88,10 @@ async def show_source_tree_msg(message: Message) -> None:
 @router.callback_query(F.data == "source_tree")
 async def show_source_tree(callback: CallbackQuery) -> None:
     source = SOURCES[0]
-    total = len(SOURCES)
+    total  = len(SOURCES)
     await callback.message.edit_text(
         _render_source(source, 0, total),
-        reply_markup=source_browse_kb(source["id"], 0, total),
+        reply_markup=source_browse_kb(source["id"], 0, total, source.get("available", True)),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -99,13 +99,13 @@ async def show_source_tree(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("src_page_"))
 async def paginate_sources(callback: CallbackQuery) -> None:
-    page = int(callback.data.split("_")[-1])
-    page = max(0, min(page, len(SOURCES) - 1))
+    page   = int(callback.data.split("_")[-1])
+    page   = max(0, min(page, len(SOURCES) - 1))
     source = SOURCES[page]
-    total = len(SOURCES)
+    total  = len(SOURCES)
     await callback.message.edit_text(
         _render_source(source, page, total),
-        reply_markup=source_browse_kb(source["id"], page, total),
+        reply_markup=source_browse_kb(source["id"], page, total, source.get("available", True)),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -118,14 +118,23 @@ async def show_details(callback: CallbackQuery) -> None:
     if not source:
         await callback.answer("المصدر غير موجود", show_alert=True)
         return
-    idx = _source_index(source_id)
+    idx   = _source_index(source_id)
     total = len(SOURCES)
     await callback.message.edit_text(
         _render_detail(source),
-        reply_markup=source_detail_full_kb(source_id, idx, total),
+        reply_markup=source_detail_full_kb(source_id, idx, total, source.get("available", True)),
         parse_mode="HTML",
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "coming_soon")
+async def coming_soon(callback: CallbackQuery) -> None:
+    await callback.answer(
+        "🔒 هذا السورس قيد التطوير — سيُطلق قريباً!\n"
+        "تابع قناة SourceFarm لمعرفة موعد الإطلاق.",
+        show_alert=True,
+    )
 
 
 @router.callback_query(F.data == "noop")

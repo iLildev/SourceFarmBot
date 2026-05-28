@@ -55,6 +55,14 @@ async def start_install(callback: CallbackQuery, state: FSMContext) -> None:
     tg_id    = callback.from_user.id
     is_admin = tg_id in ADMIN_IDS
 
+    # ── Availability check ────────────────────────────────────────────────────
+    if not source.get("available", True):
+        await callback.answer(
+            f"🔒 {source['name']} قيد التطوير بعد — سيُطلق قريباً!",
+            show_alert=True,
+        )
+        return
+
     # ── One copy per source check ─────────────────────────────────────────────
     if not is_admin and await user_has_source(tg_id, source_id):
         await callback.answer(
@@ -218,6 +226,7 @@ async def receive_token(message: Message, state: FSMContext) -> None:
             source_id=source_id_for_install,
             source_cost=cost,
             source_name=source_name,
+            bot_username=bot_username,
         )
     except InstallError as e:
         await wait_msg.delete()
