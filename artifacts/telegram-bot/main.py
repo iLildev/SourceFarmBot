@@ -2,13 +2,14 @@ import asyncio
 import logging
 import signal
 import sys
+import traceback
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, ErrorEvent
 
-from config import BOT_TOKEN, LOG_LEVEL, WEBHOOK_HOST, WEBHOOK_PORT
+from config import BOT_TOKEN, LOG_LEVEL, WEBHOOK_HOST, WEBHOOK_PORT, ADMIN_IDS
 from database.session import init_db
 from handlers import (
     start, source_tree, mode, menu, commands,
@@ -44,15 +45,16 @@ ADMIN_COMMANDS = [
     BotCommand(command="deletecode",  description="🗑 حذف كوبون"),
 ]
 
+# Module-level middleware instance so startup hook can call restore_from_db
+_rate_limit_middleware = RateLimitMiddleware()
+
 
 def _build_dispatcher() -> Dispatcher:
     dp = Dispatcher()
 
-    # ── Middlewares (outer → inner) ───────────────────────────────────────────
     dp.update.outer_middleware(ActivityMiddleware())
-    dp.update.middleware(RateLimitMiddleware())
+    dp.update.middleware(_rate_limit_middleware)
 
-    # ── Routers (specific → general) ─────────────────────────────────────────
     dp.include_router(admin.router)
     dp.include_router(admin_codes.router)
     dp.include_router(start.router)
@@ -67,7 +69,39 @@ def _build_dispatcher() -> Dispatcher:
     dp.include_router(menu.router)
     dp.include_router(fallback.router)
 
+    # ── Global error handler — alerts admins via Telegram ────────────────────
+    @dp.error()
+    async def global_error_handler(event: ErrorEvent, bot: Bot) -> None:
+        exc = event.exception
+        logger.critical(
+            "Unhandled exception in update %s: %s",
+            getattr(event.update, "update_id", "?"),
+            exc,
+            exc_info=exc,
+        )
+        if not ADMIN_IDS:
+            return
+        tb_lines = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        tb_text  = "".join(tb_lines)[-800:]
+        msg = (
+            f"🚨 <b>خطأ غير متوقع في البوت</b>\n\n"
+            f"<b>النوع:</b> <code>{type(exc).__name__}</code>\n"
+            f"<b>الرسالة:</b> <code>{str(exc)[:300]}</code>\n\n"
+            f"<pre>{tb_text}</pre>"
+        )
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, msg, parse_mode="HTML")
+            except Exception:
+                pass
+
     return dp
+
+
+async def _on_startup(bot: Bot) -> None:
+    """Called by aiogram after the dispatcher is started."""
+    await _rate_limit_middleware.restore_from_db()
+    logger.info("Startup complete — rate-limit blocks restored.")
 
 
 async def _run_polling(bot: Bot, dp: Dispatcher) -> None:
@@ -93,7 +127,6 @@ async def _run_webhook(bot: Bot, dp: Dispatcher) -> None:
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=path)
     setup_application(app, dp, bot=bot)
 
-    # Register sub-bot webhook routes on the same aiohttp server
     from runtime.webhook_server import add_routes_to_app
     add_routes_to_app(app)
 
@@ -101,7 +134,7 @@ async def _run_webhook(bot: Bot, dp: Dispatcher) -> None:
     await runner.setup()
     site = web.TCPSite(runner, host="0.0.0.0", port=WEBHOOK_PORT)
     await site.start()
-    logger.info("Webhook server listening on 0.0.0.0:%s", WEBHOOK_PORT)
+    logger.info("Webhook server on 0.0.0.0:%s", WEBHOOK_PORT)
 
     shutdown = asyncio.Event()
     loop     = asyncio.get_running_loop()
@@ -123,7 +156,6 @@ async def main() -> None:
     logger.info("Starting SourceFarm bot ...")
     await init_db()
 
-    # Start BotManager watcher + restore any bots that were running before restart
     from runtime.bot_manager import get_manager
     manager = get_manager()
     await manager.start_watcher()
@@ -138,9 +170,11 @@ async def main() -> None:
     logger.info("Bot commands registered.")
 
     dp = _build_dispatcher()
-    logger.info("All routers and middlewares registered.")
+    dp.startup.register(_on_startup)
+    logger.info("All routers, middlewares, and error handler registered.")
 
     if WEBHOOK_HOST:
+        logger.info("Mode: WEBHOOK (%s)", WEBHOOK_HOST)
         await _run_webhook(bot, dp)
     else:
         await _run_polling(bot, dp)

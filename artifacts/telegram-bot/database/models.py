@@ -52,25 +52,21 @@ class Bot(Base):
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
 
-    # Full token stored encrypted via Fernet (runtime/crypto.py)
     token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # First 10 chars only — used for duplicate detection (safe to store plain)
     token_hint: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Runtime state
     is_running: Mapped[bool] = mapped_column(Boolean, default=False)
     pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="stopped")
-    # "stopped" | "running" | "crashed" | "error"
 
     last_heartbeat: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     installed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     mode: Mapped[str] = mapped_column(String(16), default="studio")
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    bot_config: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    bot_config: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     owner: Mapped["User"] = relationship("User", back_populates="bots")
@@ -98,16 +94,8 @@ class Coupon(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
-
-    # Type: "seeds" | "free_install" | "discount"
     type: Mapped[str] = mapped_column(String(20), nullable=False, default="seeds")
-
-    # Meaning per type:
-    #   seeds       → N seeds to add
-    #   free_install→ N free installs to grant
-    #   discount    → N % discount on next install
     value: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     uses_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -137,3 +125,14 @@ class CouponUse(Base):
 
     def __repr__(self) -> str:
         return f"<CouponUse coupon={self.coupon_id} user={self.user_id}>"
+
+
+class RateLimitBlock(Base):
+    """Persists active rate-limit blocks across bot restarts."""
+    __tablename__ = "rate_limit_blocks"
+
+    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    blocked_until: Mapped[float] = mapped_column(Float, nullable=False)  # Unix timestamp
+
+    def __repr__(self) -> str:
+        return f"<RateLimitBlock user={self.user_id}>"

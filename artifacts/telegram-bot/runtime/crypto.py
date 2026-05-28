@@ -1,7 +1,7 @@
 """
 Token encryption/decryption using Fernet symmetric encryption.
-The key is stored in the FERNET_KEY environment variable.
-On first run, a key is auto-generated and printed — save it to secrets.
+FERNET_KEY must be set in secrets — never leave it unset in production.
+Generate one: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 """
 import os
 import logging
@@ -16,14 +16,21 @@ def _get_fernet() -> Fernet:
     global _fernet
     if _fernet is not None:
         return _fernet
+
     key = os.environ.get("FERNET_KEY", "").strip()
     if not key:
-        key = Fernet.generate_key().decode()
-        logger.warning(
-            "FERNET_KEY not set — generated ephemeral key (tokens lost on restart!). "
-            "Set FERNET_KEY=%s in secrets.", key
+        raise RuntimeError(
+            "FERNET_KEY is not set. "
+            "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\" "
+            "then add it to your Replit secrets. Without it, bot tokens cannot be encrypted and the platform cannot start."
         )
-    _fernet = Fernet(key.encode() if isinstance(key, str) else key)
+
+    try:
+        _fernet = Fernet(key.encode())
+    except Exception as exc:
+        raise RuntimeError(f"FERNET_KEY is invalid: {exc}") from exc
+
+    logger.info("Fernet encryption initialised.")
     return _fernet
 
 

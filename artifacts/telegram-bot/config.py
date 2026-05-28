@@ -18,14 +18,18 @@ ADMIN_IDS: set[int] = {
 OWNER_USERNAME: str = os.environ.get("OWNER_USERNAME", "")
 
 # ── Bot limits ────────────────────────────────────────────────────────────────
-# Maximum number of bots a regular user can install (admins are exempt)
 MAX_BOTS_FREE: int = int(os.environ.get("MAX_BOTS_FREE", "3"))
 
-# ── Webhook (optional) ────────────────────────────────────────────────────────
-# Set WEBHOOK_HOST to your public HTTPS URL to enable webhook mode.
-# Example: https://sourcefarm.replit.app
-# Leave empty to use polling (default for development).
+# ── Webhook (auto-detected from Replit domain, or set WEBHOOK_HOST manually) ─
+# Priority: WEBHOOK_HOST env var → REPLIT_DOMAINS (production) → polling mode
 WEBHOOK_HOST: str = os.environ.get("WEBHOOK_HOST", "").rstrip("/")
+
+if not WEBHOOK_HOST:
+    _replit_domains = os.environ.get("REPLIT_DOMAINS", "")
+    if _replit_domains:
+        _first_domain = _replit_domains.split(",")[0].strip()
+        WEBHOOK_HOST  = f"https://{_first_domain}"
+
 WEBHOOK_PORT: int = int(os.environ.get("PORT", "8080"))
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────

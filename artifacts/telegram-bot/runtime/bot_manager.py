@@ -1,23 +1,21 @@
 """
-BotManager — manages installed bots as in-process asyncio Tasks.
+BotManager — manages installed bots as isolated subprocesses.
 
-In polling mode (WEBHOOK_HOST not set):
-    Each bot runs dp.start_polling() as an asyncio Task.
-
-In webhook mode (WEBHOOK_HOST set):
-    Each bot sets its webhook URL and registers its (Bot, Dispatcher)
-    with the central webhook server. The task waits for cancellation.
+Each bot runs in its own Python process via runtime/bot_runner.py.
+This isolates crashes, memory leaks, and blocking calls from the main bot.
 
 Lifecycle:
-    start_bot()   → _launch() → asyncio.Task(plugin.run_async())
-    stop_bot()    → task.cancel()
+    start_bot()   → spawn subprocess via asyncio.create_subprocess_exec
+    stop_bot()    → SIGTERM → wait 5s → SIGKILL
     restart_bot() → stop + start
-    Watcher loop  → detects done tasks, restarts with back-off
+    Watcher loop  → detects exited processes, restarts with back-off
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -31,33 +29,46 @@ from runtime.crypto import decrypt_token
 logger = logging.getLogger(__name__)
 
 _BASE_DIR     = Path(__file__).resolve().parent.parent
+_RUNNER       = _BASE_DIR / "runtime" / "bot_runner.py"
 _MAX_RESTARTS = 5
 _BACKOFF_BASE = 5
 
 
 @dataclass
-class _BotTask:
+class _BotEntry:
     bot_id:     int
     source_id:  int
-    task:       asyncio.Task
+    proc:       asyncio.subprocess.Process
     restarts:   int = 0
     started_at: datetime = field(default_factory=datetime.utcnow)
+
+
+async def _stream_logs(bot_id: int, stream: asyncio.StreamReader) -> None:
+    """Forward subprocess stdout/stderr to the main process logger."""
+    log = logging.getLogger(f"bot.{bot_id}")
+    try:
+        async for raw in stream:
+            line = raw.decode(errors="replace").rstrip()
+            if line:
+                log.info(line)
+    except Exception:
+        pass
 
 
 class BotManager:
     """Singleton — use `get_manager()` to obtain the instance."""
 
     def __init__(self) -> None:
-        self._tasks: dict[int, _BotTask] = {}
-        self._lock  = asyncio.Lock()
-        self._watcher_task: asyncio.Task | None = None
+        self._entries: dict[int, _BotEntry] = {}
+        self._lock    = asyncio.Lock()
+        self._watcher: asyncio.Task | None  = None
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     async def start_bot(self, bot_id: int) -> bool:
         async with self._lock:
-            entry = self._tasks.get(bot_id)
-            if entry and not entry.task.done():
+            entry = self._entries.get(bot_id)
+            if entry and entry.proc.returncode is None:
                 logger.info("[manager] bot_id=%s already running", bot_id)
                 return False
 
@@ -65,7 +76,6 @@ class BotManager:
             if not bot:
                 logger.error("[manager] bot_id=%s not found in DB", bot_id)
                 return False
-
             if not bot.token_encrypted:
                 logger.error("[manager] bot_id=%s has no encrypted token", bot_id)
                 return False
@@ -73,41 +83,38 @@ class BotManager:
             try:
                 token = decrypt_token(bot.token_encrypted)
             except Exception as exc:
-                logger.error("[manager] Failed to decrypt token for bot_id=%s: %s", bot_id, exc)
+                logger.error("[manager] Cannot decrypt token for bot_id=%s: %s", bot_id, exc)
                 return False
 
-            task = await self._launch(bot_id, bot.source_id, token)
-            if not task:
+            proc = await self._spawn(bot_id, bot.source_id, token)
+            if not proc:
                 return False
 
-            self._tasks[bot_id] = _BotTask(
-                bot_id=bot_id, source_id=bot.source_id, task=task
+            self._entries[bot_id] = _BotEntry(
+                bot_id=bot_id, source_id=bot.source_id, proc=proc
             )
-            await self._persist_status(bot_id, is_running=True, pid=None)
-            logger.info("[manager] bot_id=%s started (source=%s)", bot_id, bot.source_id)
+            await self._persist_status(bot_id, is_running=True, pid=proc.pid)
+            logger.info("[manager] bot_id=%s started (pid=%s source=%s)", bot_id, proc.pid, bot.source_id)
             return True
 
     async def stop_bot(self, bot_id: int) -> bool:
         async with self._lock:
-            entry = self._tasks.pop(bot_id, None)
+            entry = self._entries.pop(bot_id, None)
             if not entry:
                 return False
 
-            if not entry.task.done():
-                entry.task.cancel()
+            proc = entry.proc
+            if proc.returncode is None:
+                proc.terminate()
                 try:
-                    await asyncio.wait_for(asyncio.shield(entry.task), timeout=5.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
-
-            try:
-                from runtime.webhook_server import unregister_bot
-                unregister_bot(bot_id)
-            except Exception:
-                pass
+                    await asyncio.wait_for(proc.wait(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    logger.warning("[manager] bot_id=%s did not exit — sending SIGKILL", bot_id)
+                    proc.kill()
+                    await proc.wait()
 
             await self._persist_status(bot_id, is_running=False, pid=None)
-            logger.info("[manager] bot_id=%s stopped", bot_id)
+            logger.info("[manager] bot_id=%s stopped (exit=%s)", bot_id, proc.returncode)
             return True
 
     async def restart_bot(self, bot_id: int) -> bool:
@@ -116,70 +123,63 @@ class BotManager:
         return await self.start_bot(bot_id)
 
     def is_running(self, bot_id: int) -> bool:
-        entry = self._tasks.get(bot_id)
-        return bool(entry and not entry.task.done())
+        entry = self._entries.get(bot_id)
+        return bool(entry and entry.proc.returncode is None)
 
     def status(self, bot_id: int) -> dict:
-        entry = self._tasks.get(bot_id)
+        entry = self._entries.get(bot_id)
         if not entry:
             return {"running": False, "pid": None, "restarts": 0}
         return {
-            "running":    not entry.task.done(),
-            "pid":        None,
+            "running":    entry.proc.returncode is None,
+            "pid":        entry.proc.pid,
             "restarts":   entry.restarts,
             "started_at": entry.started_at.isoformat(),
+            "exit_code":  entry.proc.returncode,
         }
 
     def all_statuses(self) -> dict[int, dict]:
-        return {bid: self.status(bid) for bid in self._tasks}
+        return {bid: self.status(bid) for bid in self._entries}
 
-    # ── Watcher — restarts crashed tasks ─────────────────────────────────────
+    # ── Watcher ───────────────────────────────────────────────────────────────
 
     async def start_watcher(self) -> None:
-        if self._watcher_task and not self._watcher_task.done():
+        if self._watcher and not self._watcher.done():
             return
-        self._watcher_task = asyncio.create_task(self._watch_loop())
+        self._watcher = asyncio.create_task(self._watch_loop(), name="bot_manager_watcher")
         logger.info("[manager] Watcher started.")
 
     async def _watch_loop(self) -> None:
         while True:
             await asyncio.sleep(10)
             crashed = [
-                entry for entry in list(self._tasks.values())
-                if entry.task.done()
+                e for e in list(self._entries.values())
+                if e.proc.returncode is not None
             ]
             for entry in crashed:
                 bid = entry.bot_id
-
                 if entry.restarts >= _MAX_RESTARTS:
                     logger.error(
                         "[manager] bot_id=%s exceeded max restarts (%s) — giving up.",
                         bid, _MAX_RESTARTS,
                     )
-                    self._tasks.pop(bid, None)
+                    self._entries.pop(bid, None)
                     await self._persist_status(bid, is_running=False, pid=None)
                     continue
 
-                exc = None
-                if not entry.task.cancelled():
-                    try:
-                        exc = entry.task.exception()
-                    except Exception:
-                        pass
-
-                logger.warning(
-                    "[manager] bot_id=%s finished unexpectedly (exc=%s) — restart #%s in %ss",
-                    bid, exc, entry.restarts + 1, _BACKOFF_BASE * (2 ** entry.restarts),
-                )
                 backoff = _BACKOFF_BASE * (2 ** entry.restarts)
+                logger.warning(
+                    "[manager] bot_id=%s exited (rc=%s) — restart #%s in %ss",
+                    bid, entry.proc.returncode, entry.restarts + 1, backoff,
+                )
                 await asyncio.sleep(backoff)
 
                 async with self._lock:
-                    self._tasks.pop(bid, None)
+                    self._entries.pop(bid, None)
 
                 ok = await self.start_bot(bid)
-                if ok and bid in self._tasks:
-                    self._tasks[bid].restarts = entry.restarts + 1
+                if ok and bid in self._entries:
+                    self._entries[bid].restarts = entry.restarts + 1
 
     # ── Restore on platform restart ───────────────────────────────────────────
 
@@ -190,35 +190,36 @@ class BotManager:
             )
             bots = result.scalars().all()
 
-        logger.info("[manager] Restoring %s previously-running bots ...", len(bots))
+        logger.info("[manager] Restoring %s previously-running bot(s) ...", len(bots))
         for bot in bots:
             await self.start_bot(bot.id)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    async def _launch(
+    async def _spawn(
         self, bot_id: int, source_id: int, token: str
-    ) -> asyncio.Task | None:
-        """Import plugin class and create an asyncio Task running plugin.run_async()."""
-        from runtime.source_registry import get_plugin_class
-        from runtime.log_buffer import attach_buffer_handler
-
-        PluginClass = get_plugin_class(source_id)
-        if not PluginClass:
-            logger.error("[manager] No plugin class for source_id=%s", source_id)
-            return None
-
-        attach_buffer_handler(bot_id)
-
+    ) -> asyncio.subprocess.Process | None:
+        env = {
+            **os.environ,
+            "SF_BOT_ID":    str(bot_id),
+            "SF_SOURCE_ID": str(source_id),
+            "SF_BOT_TOKEN": token,
+        }
         try:
-            plugin = PluginClass(token=token, bot_id=bot_id, config={})
-            task = asyncio.create_task(
-                plugin.run_async(),
-                name=f"bot_{bot_id}",
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, str(_RUNNER),
+                env=env,
+                cwd=str(_BASE_DIR),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
             )
-            return task
+            asyncio.create_task(
+                _stream_logs(bot_id, proc.stdout),
+                name=f"bot_logs_{bot_id}",
+            )
+            return proc
         except Exception as exc:
-            logger.error("[manager] Failed to create task for bot_id=%s: %s", bot_id, exc)
+            logger.error("[manager] Failed to spawn subprocess for bot_id=%s: %s", bot_id, exc)
             return None
 
     @staticmethod
