@@ -20,15 +20,12 @@ OWNER_USERNAME: str = os.environ.get("OWNER_USERNAME", "")
 # ── Bot limits ────────────────────────────────────────────────────────────────
 MAX_BOTS_FREE: int = int(os.environ.get("MAX_BOTS_FREE", "3"))
 
-# ── Webhook (auto-detected from Replit domain, or set WEBHOOK_HOST manually) ─
-# Priority: WEBHOOK_HOST env var → REPLIT_DOMAINS (production) → polling mode
+# ── Webhook (only when WEBHOOK_HOST is explicitly set) ───────────────────────
+# In development (Replit), leave WEBHOOK_HOST unset → bot runs in polling mode.
+# In production deployment, set WEBHOOK_HOST to your public HTTPS domain.
+# REPLIT_DOMAINS is intentionally NOT auto-used: Replit routes port 80 to the
+# API server, so webhook traffic would never reach the bot's server on port 8000.
 WEBHOOK_HOST: str = os.environ.get("WEBHOOK_HOST", "").rstrip("/")
-
-if not WEBHOOK_HOST:
-    _replit_domains = os.environ.get("REPLIT_DOMAINS", "")
-    if _replit_domains:
-        _first_domain = _replit_domains.split(",")[0].strip()
-        WEBHOOK_HOST  = f"https://{_first_domain}"
 
 WEBHOOK_PORT: int = int(os.environ.get("PORT", "8080"))
 
