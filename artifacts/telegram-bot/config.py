@@ -5,12 +5,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN: str = os.environ["TELEGRAM_BOT_TOKEN"]
+BOT_TOKEN: str = os.environ["BOT_TOKEN"]
 _raw_db_url: str = os.environ.get("DATABASE_URL", "")
 
 LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
 
-_admin_raw: str = os.environ.get("ADMIN_ID", "")
+_admin_raw: str = os.environ.get("OWNER_ID", "")
 ADMIN_IDS: set[int] = {
     int(x.strip()) for x in _admin_raw.split(",") if x.strip().isdigit()
 }
